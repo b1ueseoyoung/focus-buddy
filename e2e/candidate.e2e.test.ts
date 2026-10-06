@@ -282,9 +282,15 @@ desktopTest('actual menu callbacks start, pause, resume and reset; widget cat an
   expect(reset.suggestedNext).toBe('focus');
   expect(reset.today.sessions.find((session) => session.id === started.sessionId)?.status).toBe('interrupted');
   expect(reset.settings.durations).toEqual(started.settings.durations);
+  await mini.getByRole('button', { name: '▶ 시작', exact: true }).waitFor({ state: 'visible' });
 
   await app.nativeAction('시작');
   await waitFor(() => app.snapshot(), (state) => state.status === 'running');
+  // A core snapshot can lead the persisted/broadcast state. Observe the new
+  // running render and an actual frame before jumping a full focus interval.
+  await mini.getByRole('button', { name: 'Ⅱ 일시정지', exact: true }).waitFor({ state: 'visible' });
+  const restartedFrame = await cat.getAttribute('src');
+  await waitFor(() => cat.getAttribute('src'), (frame) => frame !== restartedFrame, 15000, 'restarted focus animation frame');
   await app.advance(61000);
   expect((await app.snapshot()).today.completedFocusCount).toBe(1);
   await waitFor(() => cat.getAttribute('data-animation'), (state) => state === 'rest');

@@ -73,8 +73,8 @@
     },
     {
       "path": "e2e/candidate.e2e.test.ts",
-      "bytes": 20781,
-      "sha256": "701015eb418ee7e277e6c62bad67096ec20d8fc1b200abc96f6d5c1311bb9258"
+      "bytes": 21327,
+      "sha256": "825078ea03c9a0153e559f086654b98a84c3d047a28b3601f0b7de492fa9c05e"
     },
     {
       "path": "e2e/helper-timeouts.test.ts",
