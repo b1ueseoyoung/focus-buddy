@@ -97,6 +97,11 @@
       "sha256": "b63b1a929f29a89f43c26c263f1be9df5ba5fb48cb156449fa997ff78ec6f385"
     },
     {
+      "path": "e2e/settings-save.e2e.test.ts",
+      "bytes": 6105,
+      "sha256": "143b0e33edd9a8370ec6a9b07a56c28915234557c02001273757d04568510378"
+    },
+    {
       "path": "electron-builder.yml",
       "bytes": 1100,
       "sha256": "8c6bac2bebd659eea34f604c57d9161848a5bf7e286aebacc9663ddd15d70aff"
@@ -343,8 +348,8 @@
     },
     {
       "path": "src/main/focus/index.ts",
-      "bytes": 9067,
-      "sha256": "99b5b30c2166c1c8834fcc1352646d751dfb8c36a0b26da585f6f1fd82817fdb"
+      "bytes": 8724,
+      "sha256": "b0645c98cbb744c03927a956b19e3c696a7e5cfaab9cbb162c60d86a163a5bf4"
     },
     {
       "path": "src/main/focus/ipc.ts",
@@ -368,13 +373,23 @@
     },
     {
       "path": "src/main/focus/snore-cue.test.ts",
-      "bytes": 1361,
-      "sha256": "28f9277a4713725e3aa147af6139de0f3701ca7f8ce32d07a62b9e820eb3759f"
+      "bytes": 1847,
+      "sha256": "91dc3fc7c876147d1942fcc290f8cad9712761b952643f1396586412c194b1fc"
     },
     {
       "path": "src/main/focus/snore-cue.ts",
-      "bytes": 788,
-      "sha256": "802c33009299b71dbfdca8439ac7853673ed82dfadfe970335e32693cfbc3846"
+      "bytes": 1156,
+      "sha256": "c31da1e81cdceb78bfdb633c7edaf42525dc186f19a8eecc6610c7bbf498cdba"
+    },
+    {
+      "path": "src/main/focus/snore-preferences.test.ts",
+      "bytes": 7643,
+      "sha256": "598d8c6021d1c74fc336f262fed32d199ec30333e56d9bd2bd524685f081fe64"
+    },
+    {
+      "path": "src/main/focus/snore-preferences.ts",
+      "bytes": 2602,
+      "sha256": "231bc7b72dd001b0112caa10e813ef0b975f3dd48692919656227098dc70561d"
     },
     {
       "path": "src/main/focus/store.test.ts",
@@ -617,6 +632,16 @@
       "sha256": "30984d78d5819515ed0611fdd7db44a527d767d7864397fe4e894e9d87ad3dd6"
     },
     {
+      "path": "src/renderer/src/focus/settings-save.test.ts",
+      "bytes": 6466,
+      "sha256": "cdbeddcaecfc0f2b2316f89bdf993b7465c1f7a08dc4474ea612cad35b09bfa5"
+    },
+    {
+      "path": "src/renderer/src/focus/settings-save.ts",
+      "bytes": 2253,
+      "sha256": "69c8bed5cf2a71d75a3af89b72a87c96a42835eb92c2c5c0256e3f73a5832be5"
+    },
+    {
       "path": "src/renderer/src/focus/snore-audio.test.ts",
       "bytes": 438,
       "sha256": "0c897eb971b6cdd9690805a9353f23b8af1387a5bf62a4af575dba090269394b"
@@ -668,8 +693,8 @@
     },
     {
       "path": "src/renderer/src/focus/views/SettingsPanel.tsx",
-      "bytes": 8516,
-      "sha256": "12ac776ceaa5342788e56529a419d026f66daf55f28d539a17519d9bbdc2493e"
+      "bytes": 9935,
+      "sha256": "14f5a1424d918902d5daf6fb21bd2ff1d05c80e6225bc65d9809f165fd461893"
     },
     {
       "path": "src/renderer/src/focus/views/TodayPanel.tsx",
