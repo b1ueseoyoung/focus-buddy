@@ -3,8 +3,10 @@
 On 2026-10-06, the project owner approved publication of the following project-created cat artwork under **Creative Commons Attribution 4.0 International (CC BY 4.0)**, to the extent of rights the owner can grant. This applies to these artwork files and their project-created adaptations:
 
 - `src/renderer/public/cat/*.png`: base cat, 15 sleep/wake/stretch/rest frames, and the app-icon PNG.
-- `resources/icon.png` and `resources/icon.icns`: app icon and its format conversion.
+- `resources/icon.png`, `resources/icon.icns`, and `resources/icon.ico`: app icon and its format conversions. The Windows ICO embeds the existing ICNS PNG representations without changing their pixels.
 - `resources/menu-cat/*.png` and `resources/tray-icon*.png`: directly drawn pixel menu/tray faces and their size variants.
+
+On Windows, the tray renderer chooses black or white pixels at runtime to match the taskbar theme while preserving the supplied face shapes and alpha. This is a project-created adaptation under the same artwork license.
 
 The full, unchanged official license is [LICENSE-CC-BY-4.0.txt](licenses/LICENSE-CC-BY-4.0.txt); the canonical license is <https://creativecommons.org/licenses/by/4.0/>. The artwork is supplied as-is, with the disclaimers in that license.
 

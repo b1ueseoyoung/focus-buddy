@@ -11,7 +11,6 @@ files:
   - resources/tray-icon@2x.png
   - resources/menu-cat/*.png
   - resources/menu-cat/face-playback.json
-  - resources/focus-menu-helper
   - licenses/**/*
   - LICENSE
   - ARTWORK-LICENSE.md
@@ -20,10 +19,30 @@ files:
 asarUnpack:
   - resources/**
 mac:
+  files:
+    - resources/focus-menu-helper
   icon: resources/icon.icns
   target:
     - target: dir
       arch: [arm64]
   notarize: false
+win:
+  icon: resources/icon.ico
+  files:
+    - resources/icon.ico
+    - '!resources/focus-menu-helper'
+  target:
+    - target: nsis
+      arch: [x64]
+  requestedExecutionLevel: asInvoker
+nsis:
+  artifactName: Focus-Buddy-Candidate-${version}-${arch}-Setup.${ext}
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: false
+  runAfterFinish: false
+  deleteAppDataOnUninstall: false
 npmRebuild: false
 afterPack: scripts/adhoc-sign.cjs

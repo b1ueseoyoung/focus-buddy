@@ -1,6 +1,6 @@
 # Focus Buddy
 
-작은 픽셀 고양이와 함께 쓰는 로컬 뽀모도로 앱입니다. 메뉴바의 고양이와 남은 시간이 기본 화면이며, 고양이 위젯·설정·기록 화면을 필요할 때 열 수 있습니다. AI 서버, 계정 로그인, 마이크·카메라가 필요하지 않습니다.
+작은 픽셀 고양이와 함께 쓰는 로컬 뽀모도로 앱입니다. macOS 메뉴바 또는 Windows 작업표시줄 알림 영역의 고양이가 기본 화면이며, 고양이 위젯·설정·기록 화면을 필요할 때 열 수 있습니다. AI 서버, 계정 로그인, 마이크·카메라가 필요하지 않습니다.
 
 이 저장소는 기존 프로젝트에서 Focus 전용 구현을 분리한 독립 소스입니다. 자체 코드는 [MIT](LICENSE), 프로젝트가 만든 고양이 그림은 [CC BY 4.0](ARTWORK-LICENSE.md)이며, Galmuri 등 제3자 자산은 원래 라이선스를 유지합니다. 범위는 [소스·라이선스 검토](docs/SOURCE_LICENSE_REVIEW.md), [자산 출처](docs/ASSET_PROVENANCE.md), [제3자 고지](THIRD_PARTY_NOTICES.md)에 기록합니다.
 
@@ -10,11 +10,13 @@
 
 검증한 환경은 **macOS Apple Silicon(arm64)**입니다. 현재 공개 배포물은 소스이며, GitHub Release나 서명·공증된 설치 프로그램은 제공하지 않습니다. 아래 명령으로 빌드한 `release/mac-arm64/Focus Buddy Candidate.app`을 열면 메뉴바에 나타납니다. 메뉴에서 **위젯 켜기**, **설정 및 작업명**, **오늘 기록**을 선택하세요. 시작 시 창과 위젯은 기본 숨김입니다.
 
+**Windows x64는 개발 중인 지원 경로**입니다. [Windows 개발·검증 안내](docs/WINDOWS.md)에 PowerShell 명령, 트레이 사용법, CI 검사와 실제 Windows GUI 미검증 항목을 분리해 기록합니다. Windows에서는 트레이 아이콘을 오른쪽 클릭해 메뉴를 열고, 두 번 클릭해 설정 창을 엽니다. 남은 시간은 툴팁과 메뉴 첫 줄에서 확인합니다.
+
 앱 이름과 데이터 폴더는 기존 설치 앱과 충돌하지 않도록 `Focus Buddy Candidate`를 유지합니다. 기존 Focus Buddy의 설정·기록을 자동으로 가져오거나 변경하지 않습니다. 설치된 기존 앱을 교체하는 업데이트가 아닙니다. `package.json`의 `private: true`는 실수로 npm에 게시하는 것을 막는 설정이며 GitHub 저장소의 공개 범위를 뜻하지 않습니다.
 
 ## 개발과 빌드
 
-Node.js 22 이상, Bun 1.4.2 이상, macOS Command Line Tools(`swiftc`, `codesign`)가 필요합니다. 의존성은 잠금파일로 고정했고 검증한 Electron은 **44.5.1**입니다. 의존성·Electron 다운로드에 처음 한 번 인터넷 연결이 필요합니다.
+Node.js 22 이상, Bun 1.4.2 이상이 필요합니다. macOS에서는 Command Line Tools(`swiftc`, `codesign`)도 필요하며 Windows 빌드는 Swift/AppKit을 사용하지 않습니다. 의존성은 잠금파일로 고정했고 검증한 Electron은 **44.5.1**입니다. 의존성·Electron 다운로드에 처음 한 번 인터넷 연결이 필요합니다.
 
 ```sh
 git clone https://github.com/b1ueseoyoung/focus-buddy.git
@@ -39,13 +41,44 @@ bun run verify:source
 
 로컬 macOS 앱을 열려면 `open "release/mac-arm64/Focus Buddy Candidate.app"`을 실행하세요.
 
+### Windows에서 실행·빌드
+
+Windows 10/11 x64와 Node.js 22, Bun 1.4.2를 준비하고 PowerShell에서 실행하세요. 아직 Release 다운로드나 미리 만든 Windows 설치 파일은 제공하지 않습니다. 아래 명령은 소스로부터 직접 빌드합니다.
+
+```powershell
+git clone https://github.com/b1ueseoyoung/focus-buddy.git
+cd focus-buddy
+git switch main
+bun install --frozen-lockfile --ignore-scripts
+node node_modules/electron/install.js
+bun run build:win
+bun run start
+```
+
+개발 중 자동 새로고침은 `bun run dev`를 사용하세요. 시작하면 작업표시줄 알림 영역(숨겨진 아이콘 포함)의 고양이를 오른쪽 클릭해 **위젯 켜기**, **설정 및 작업명**, **오늘 기록**을 선택합니다. 두 번 클릭하면 설정 창이 열립니다. 창을 닫으면 숨겨지고, 트레이의 **Focus Buddy 종료**로 앱을 종료합니다.
+
+```powershell
+bun run typecheck
+bun run test
+bun run test:e2e
+bun run package:win
+bun run audit:win
+# 선택: Windows에서 서명 없는 NSIS 설치 프로그램을 로컬 생성
+bun run dist:win
+& '.\release\win-unpacked\Focus Buddy Candidate.exe'
+```
+
+실행 중인 앱을 다시 패키징하려면 먼저 트레이의 **Focus Buddy 종료**로 닫으세요. 설치 프로그램은 `release/Focus-Buddy-Candidate-0.1.0-candidate.1-x64-Setup.exe`에 생성됩니다. 일반 실행 시 현재 사용자 설치가 기본이며 관리자 권한을 요청하지 않습니다. Windows SmartScreen이 서명 없는 파일 경고를 표시할 수 있습니다. 데이터는 `%APPDATA%\Focus Buddy Candidate`에 저장되고 기존 앱 기록을 가져오지 않습니다.
+
+Mac의 `package:win`은 Windows 파일 조립만 검증하며 EXE 실행·설치와 아이콘/버전 리소스 편집은 하지 않습니다. Windows CI는 실제 Windows 호스트의 Electron 자동 검사와 패키징을 수행하지만, 사람이 조작하는 Windows GUI·실제 절전·DPI·투명 클릭 영역·알림·설치/제거는 별도 미검증입니다. [검사 실행](https://github.com/b1ueseoyoung/focus-buddy/actions/workflows/windows.yml)과 [상세 범위](docs/WINDOWS.md)를 확인하세요.
+
 패키지 자체의 통합 테스트:
 
 ```sh
 FOCUS_BUDDY_CANDIDATE_ELECTRON="$PWD/release/mac-arm64/Focus Buddy Candidate.app/Contents/MacOS/Focus Buddy Candidate" bun run test:e2e
 ```
 
-검사는 별도 `/tmp/focus-buddy-candidate-*` 프로필을 생성합니다. 시험용 샘플 기록을 실제 사용자 기록 폴더에 넣지 마세요. `FOCUS_BUDDY_USER_DATA_DIR`은 명시적인 별도 로컬 프로필이 필요할 때만 사용하세요.
+검사는 OS 임시 폴더 안의 별도 `focus-buddy-candidate-*` 프로필을 생성합니다. 시험용 샘플 기록을 실제 사용자 기록 폴더에 넣지 마세요. `FOCUS_BUDDY_USER_DATA_DIR`은 명시적인 별도 로컬 프로필이 필요할 때만 사용하세요.
 
 ## 타이머와 저장
 
@@ -57,9 +90,18 @@ FOCUS_BUDDY_CANDIDATE_ELECTRON="$PWD/release/mac-arm64/Focus Buddy Candidate.app
 
 ## 검증과 제한
 
-검증 범위·실행 결과는 [VERIFICATION.md](docs/VERIFICATION.md)에 기록합니다. 물리적인 창 드래그·투명 여백 클릭, 실제 macOS 절전, 강제 종료, Intel macOS 및 Windows/Linux 배포는 별도로 확인하지 않았습니다. 모의 절전·AppKit 테스트 명령을 실제 OS 입력으로 표현하지 않습니다. 현재 원격 CI 워크플로는 없으며 검사 결과는 로컬 실행 기록입니다.
+최초 공개 버전의 검증은 [VERIFICATION.md](docs/VERIFICATION.md), Windows 변경의 검증은 [WINDOWS.md](docs/WINDOWS.md)에 기록합니다. 물리적인 창 드래그·투명 여백 클릭, 실제 절전/로그오프·강제 종료, Intel macOS와 Linux는 별도로 확인하지 않았습니다. 모의 절전·AppKit/Electron 메뉴 테스트 명령은 실제 OS 입력을 검증하지 않습니다. Windows CI는 PR의 정확한 커밋을 검사하며 실행 링크와 범위는 Windows 안내에서 확인할 수 있습니다.
 
 macOS 빌드는 로컬 ad-hoc 서명입니다. Developer ID 서명·공증·자동 업데이트·App Store 배포를 준비한 패키지가 아닙니다. 공개 후보 소스 ZIP에는 Git 이력, `node_modules`, 개인 증거 파일과 사용자 데이터가 없으며, 바이너리는 해당 환경에서 다시 빌드합니다.
+
+### 알려진 문제
+
+다음 기존 문제는 Windows 지원 변경에서 수정하지 않았으며 별도 수정 PR의 대상입니다.
+
+- 시스템 시각을 변경하면 집중 완료 기록의 시각·날짜가 잘못될 수 있습니다.
+- 자정을 걸친 휴식이 오늘 휴식 집계에 잘못 반영될 수 있습니다.
+- 설정의 디스크 저장이 실패해도 설정 화면에 저장 성공이 표시될 수 있습니다.
+- macOS 메뉴바 helper의 실행 실패에서 자동 복구가 누락될 수 있습니다. Windows는 이 helper를 사용하지 않습니다.
 
 ## 라이선스와 이미지 출처
 

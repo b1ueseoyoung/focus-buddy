@@ -94,6 +94,7 @@ Swift helper의 현 감사 대상은 114,432바이트 arm64 Mach-O이며 SHA-256
 - 고양이: base, app-icon, playback JSON과 JSON이 가리키는 15개 sleep/wake/stretch/rest PNG.
 - 폰트: 위 WOFF2 세 개, SOURCE/저작권·OFL 고지.
 - macOS 리소스: 현재 icon PNG/ICNS, tray 1x/2x, 메뉴 얼굴 16개 PNG, 새 빌드의 native helper. face-playback JSON은 작동 필수가 아닌 출처 참고용이다.
+- Windows 리소스: 같은 메뉴 얼굴 PNG와 `resources/icon.ico`. ICO는 `bun run assets:win-icon`으로 기존 ICNS 안의 32/64/128/256px PNG 바이트를 그대로 재포장하며, 새 이미지 생성이나 픽셀 변경은 하지 않는다. 트레이는 실행 중 작업표시줄 테마에 따라 기존 얼굴을 검정/흰색으로 표시한다. 두 파생물은 [고양이 그림 라이선스](../ARTWORK-LICENSE.md)의 CC BY 4.0 범위이다. Windows 패키지에는 Swift native helper가 없다.
 - 재현 소스: 직접 제작 얼굴 스크립트, Swift helper 소스와 빌드 스크립트. 재현·출처 파일은 실행 의존성과 구분한다.
 - 제삼자 고지: Galmuri OFL, 사용한 sprite-gen의 Apache LICENSE 및 원래 NOTICE.
 

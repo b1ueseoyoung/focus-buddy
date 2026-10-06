@@ -85,7 +85,8 @@ export function createFocusWindows(deps: FocusWindowsDeps): FocusWindows {
         nodeIntegration: false,
       },
     });
-    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    if (process.platform === 'darwin')
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     win.setAlwaysOnTop(deps.alwaysOnTop(), "floating");
     win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     win.on("close", (event) => {
