@@ -73,8 +73,8 @@
     },
     {
       "path": "e2e/candidate.e2e.test.ts",
-      "bytes": 23180,
-      "sha256": "3bbfe91fdbedb59dc9f2859bef967ed804fa132b0b4c40a6d875838eefcf4e92"
+      "bytes": 23457,
+      "sha256": "c4e9dea5670c1af66b311c7539f5e49087931feb9eaaaf4099ad76bb5755086a"
     },
     {
       "path": "e2e/helper-timeouts.test.ts",
@@ -98,8 +98,8 @@
     },
     {
       "path": "e2e/settings-save.e2e.test.ts",
-      "bytes": 6105,
-      "sha256": "143b0e33edd9a8370ec6a9b07a56c28915234557c02001273757d04568510378"
+      "bytes": 6445,
+      "sha256": "986dceecf8882a43253bfe168f5839f3c9417a9edf833a336402c74f365e2f82"
     },
     {
       "path": "electron-builder.yml",

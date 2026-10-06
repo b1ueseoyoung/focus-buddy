@@ -8,16 +8,24 @@ import {isolatedProfilePath} from './profile-paths';
 const desktopTest = ['darwin', 'win32'].includes(process.platform) ? test : test.skip;
 const active = new Set<CandidateApp>();
 const cleanupErrors: unknown[] = [];
+const failedLaunchProfiles = new Set<string>();
 const taskKey = 'focus-buddy.pixel.next-task';
 async function launch(profile?: string): Promise<CandidateApp> {
-  const candidate = await launchCandidate({userDataDir:profile});
-  active.add(candidate);
-  return candidate;
+  try {
+    const candidate = await launchCandidate({userDataDir:profile});
+    active.add(candidate);
+    return candidate;
+  } catch (error) {
+    // A closed earlier handle cannot prove that a failed replacement exited.
+    // Retain its shared profile even if the earlier handle closes successfully.
+    if (profile !== undefined) failedLaunchProfiles.add(profile);
+    throw error;
+  }
 }
 afterEach(async () => {
   const apps = [...active];
   active.clear();
-  const retained = new Set<string>();
+  const retained = new Set(failedLaunchProfiles);
   for (const candidate of apps) {
     try { await candidate.close(); }
     catch (error) { cleanupErrors.push(error); retained.add(candidate.userDataDir); }

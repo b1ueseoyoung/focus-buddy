@@ -10,15 +10,22 @@ const desktopTest = ['darwin', 'win32'].includes(process.platform) ? test : test
 const windowsTest = process.platform === 'win32' ? test : test.skip;
 const active = new Set<CandidateApp>();
 const cleanupErrors: unknown[] = [];
+const failedLaunchProfiles = new Set<string>();
 async function launch(userDataDir?: string): Promise<CandidateApp> {
-  const app = await launchCandidate({ userDataDir });
-  active.add(app);
-  return app;
+  try {
+    const app = await launchCandidate({ userDataDir });
+    active.add(app);
+    return app;
+  } catch (error) {
+    // A successfully closed earlier handle does not prove a failed replacement exited.
+    if (userDataDir !== undefined) failedLaunchProfiles.add(userDataDir);
+    throw error;
+  }
 }
 afterEach(async () => {
   const apps = [...active];
   active.clear();
-  const retained = new Set<string>();
+  const retained = new Set(failedLaunchProfiles);
   for (const app of apps) {
     try { await app.close(); }
     catch (error) {
