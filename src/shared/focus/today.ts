@@ -60,6 +60,15 @@ export function buildTodaySummary(state: PersistedState, now: number, tz: string
       session.status === 'completed' &&
       session.completedAt !== null &&
       dateKeyOf(session.completedAt, session.tz) === todayKey;
+    const endedBreakToday =
+      !isFocus &&
+      ((session.completedAt !== null && dateKeyOf(session.completedAt, session.tz) === todayKey) ||
+        (session.endedAt !== null && dateKeyOf(session.endedAt, session.tz) === todayKey));
+    const activeBreakToday =
+      !isFocus &&
+      state.active?.sessionId === session.id &&
+      (session.status === 'running' || session.status === 'paused') &&
+      dateKeyOf(now, session.tz) === todayKey;
 
     if (completedToday) completedFocusCount += 1;
     if (isFocus && (hasTodayPiece || completedToday)) {
@@ -68,7 +77,7 @@ export function buildTodaySummary(state: PersistedState, now: number, tz: string
       if (completedToday) task.completedCount += 1;
       tasks.set(session.taskName, task);
     }
-    if (hasTodayPiece || dateKeyOf(session.startedAt, session.tz) === todayKey) {
+    if (hasTodayPiece || dateKeyOf(session.startedAt, session.tz) === todayKey || completedToday || endedBreakToday || activeBreakToday) {
       sessions.push({
         id: session.id,
         phase: session.phase,

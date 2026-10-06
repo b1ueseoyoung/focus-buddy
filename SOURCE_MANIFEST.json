@@ -733,13 +733,13 @@
     },
     {
       "path": "src/shared/focus/today.test.ts",
-      "bytes": 5914,
-      "sha256": "cef0e7d588d2717ef690d78d9558be655a6c8ed4e58b9ae33e5875f2151e94a4"
+      "bytes": 12713,
+      "sha256": "9d657a4400deaa0de54c0abb8f3dd7ae621f439b254d8d10590d863e73541eae"
     },
     {
       "path": "src/shared/focus/today.ts",
-      "bytes": 3655,
-      "sha256": "21938edd82091b932bdc61b25041d435b74f83aa9045de0927ffc74ac243b780"
+      "bytes": 4163,
+      "sha256": "341ea9e3ec7e6919ab85265ffc8080875ccc88b958b943aae174e7ae90e97e43"
     },
     {
       "path": "src/shared/focus/types.ts",
