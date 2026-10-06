@@ -1,7 +1,8 @@
-import {readFileSync,writeFileSync,renameSync,mkdirSync} from 'node:fs';
+import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import type {EventEmitter} from 'node:events';
-import {SnoreCueClock,type SnoreCheckpoint} from './snore-cue';
+import {SnoreCueClock,observeSnoreCue} from './snore-cue';
+import {SnorePreferences} from './snore-preferences';
 import { app, BrowserWindow, ipcMain } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
 import { CHANNELS } from "../../shared/focus/constants";
@@ -27,20 +28,19 @@ export interface FocusMain {
 // app ready 뒤, 기본 창을 만들기 전에 부른다: 렌더러의 첫 getState 보다 핸들러가 먼저 있어야 한다.
 export function registerFocusMain(): FocusMain {
   const cuePath=join(app.getPath('userData'),'focus-snore.json');
-  let snoreSound=false;let checkpoint:SnoreCheckpoint={sessionId:null,bucket:0};
-  try{const saved=JSON.parse(readFileSync(cuePath,'utf8'));snoreSound=saved.sound===true;if((saved.checkpoint?.sessionId===null||typeof saved.checkpoint?.sessionId==='string')&&Number.isInteger(saved.checkpoint.bucket)&&saved.checkpoint.bucket>=0)checkpoint=saved.checkpoint;}catch{}
-  const saveCue=():void=>{try{mkdirSync(app.getPath('userData'),{recursive:true});writeFileSync(cuePath+'.tmp',JSON.stringify({sound:snoreSound,checkpoint}));renameSync(cuePath+'.tmp',cuePath);}catch(e){console.error('snore preference save failed',e);}};
-  const cueClock=new SnoreCueClock(checkpoint,v=>{checkpoint=v;saveCue();});
+  const snorePreferences=new SnorePreferences(cuePath);
+  const cueClock=new SnoreCueClock(undefined,v=>snorePreferences.setCheckpoint(v));
+  const observeCue=(snapshot:Snapshot):string|null=>observeSnoreCue(cueClock,snapshot,error=>console.error('snore preference access failed',error),()=>snorePreferences.checkpoint);
   const ourWindows = new Set<BrowserWindow>();
   let mainWindow: BrowserWindow | null = null;
   let onPowerState: (snapshot: Snapshot) => void = () => undefined;
 
   const broadcast = (snapshot: Snapshot): void => {
     onPowerState(snapshot);
-    const cue=cueClock.observe(snapshot);
+    const cue=observeCue(snapshot);
     if(cue){const widget=[...ourWindows].find(w=>!w.isDestroyed()&&w.webContents.getURL().includes('#/mini')&&w.isVisible());
       widget?.webContents.send('focus:snore-cue',{id:cue,sound:false,visual:true});
-      if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('focus:snore-cue',{id:cue,sound:snoreSound,visual:false});
+      if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('focus:snore-cue',{id:cue,sound:snorePreferences.sound,visual:false});
     }
     ourWindows.forEach((win) => {
       if (!win.isDestroyed()) win.webContents.send(CHANNELS.state, snapshot);
@@ -115,7 +115,7 @@ export function registerFocusMain(): FocusMain {
   };
   // 서비스는 init 에서 broadcast 하지 않는다: 복구된 상태(paused 등)를 트레이에 한 번 반영한다.
   ready
-    .then((snapshot) => {cueClock.observe(snapshot);tray.update(snapshot);setTimeout(()=>{try{writeFileSync(join(app.getPath('userData'),'focus-runtime.json'),JSON.stringify({build:'dot-cat-r5',pid:process.pid,executable:process.execPath,userData:app.getPath('userData'),tray:tray.diagnostics()},null,2));}catch(e){console.warn('runtime diagnostic write failed',e);}},2500).unref();})
+    .then((snapshot) => {observeCue(snapshot);tray.update(snapshot);setTimeout(()=>{try{writeFileSync(join(app.getPath('userData'),'focus-runtime.json'),JSON.stringify({build:'dot-cat-r5',pid:process.pid,executable:process.execPath,userData:app.getPath('userData'),tray:tray.diagnostics()},null,2));}catch(e){console.warn('runtime diagnostic write failed',e);}},2500).unref();})
     .catch((error: unknown) => {
       console.error("focus init failed", error);
     });
@@ -124,7 +124,7 @@ export function registerFocusMain(): FocusMain {
   let lastAudioStatus:unknown=null;
   ipcMain.on('focus:audio-status',(event,status:unknown)=>{assertKnownSender(event);if(BrowserWindow.fromWebContents(event.sender)===mainWindow)lastAudioStatus=status;});
   ipcMain.handle('focus:audio-info',event=>{assertKnownSender(event);return lastAudioStatus;});
-  ipcMain.handle('focus:snore-settings',(event,value:unknown)=>{assertKnownSender(event);if(value!==undefined){if(typeof value!=='boolean')throw new Error('invalid snore sound');snoreSound=value;saveCue();}return snoreSound;});
+  ipcMain.handle('focus:snore-settings',(event,value:unknown)=>{assertKnownSender(event);if(value!==undefined){if(typeof value!=='boolean')throw new Error('invalid snore sound');snorePreferences.setSound(value);}return snorePreferences.sound;});
   ipcMain.handle('focus:runtime-info',event=>{assertKnownSender(event);return {build:'dot-cat-r5',pid:process.pid,executable:process.execPath,userData:app.getPath('userData'),tray:tray.diagnostics()};});
   if(process.env.FOCUS_BUDDY_E2E==='1')ipcMain.handle('focus:native-menu-test',(event,label:unknown)=>{assertKnownSender(event);if(label==='open')tray.testNativeOpen();else if(typeof label==='string')tray.testNativeAction(label);else throw Error('Invalid native menu test');});
   if(process.env.FOCUS_BUDDY_E2E==='1')(app as EventEmitter).on('focus-buddy:e2e-tray-action',(label:unknown)=>{
