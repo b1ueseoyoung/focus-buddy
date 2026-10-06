@@ -90,18 +90,20 @@ FOCUS_BUDDY_CANDIDATE_ELECTRON="$PWD/release/mac-arm64/Focus Buddy Candidate.app
 
 ## 검증과 제한
 
-최초 공개 버전의 검증은 [VERIFICATION.md](docs/VERIFICATION.md), Windows 변경의 검증은 [WINDOWS.md](docs/WINDOWS.md)에 기록합니다. 물리적인 창 드래그·투명 여백 클릭, 실제 절전/로그오프·강제 종료, Intel macOS와 Linux는 별도로 확인하지 않았습니다. 모의 절전·AppKit/Electron 메뉴 테스트 명령은 실제 OS 입력을 검증하지 않습니다. Windows CI는 PR의 정확한 커밋을 검사하며 실행 링크와 범위는 Windows 안내에서 확인할 수 있습니다.
+최초 공개 버전의 검증은 [VERIFICATION.md](docs/VERIFICATION.md), Windows 변경은 [WINDOWS.md](docs/WINDOWS.md), 후속 네 수정은 [FIX_VERIFICATION.md](docs/FIX_VERIFICATION.md)에 기록합니다. 물리적인 창 드래그·투명 여백 클릭, 실제 절전/로그오프·강제 종료, Intel macOS와 Linux는 별도로 확인하지 않았습니다. 모의 절전·AppKit/Electron 메뉴 테스트 명령은 실제 OS 입력을 검증하지 않습니다. Windows CI는 PR의 정확한 커밋을 검사하며 실행 링크와 범위는 각 수정 PR에서 확인할 수 있습니다.
 
 macOS 빌드는 로컬 ad-hoc 서명입니다. Developer ID 서명·공증·자동 업데이트·App Store 배포를 준비한 패키지가 아닙니다. 공개 후보 소스 ZIP에는 Git 이력, `node_modules`, 개인 증거 파일과 사용자 데이터가 없으며, 바이너리는 해당 환경에서 다시 빌드합니다.
 
 ### 알려진 문제
 
-다음 기존 문제는 Windows 지원 변경에서 수정하지 않았으며 별도 수정 PR의 대상입니다.
+검토에서 확인한 네 문제는 다음 PR에서 수정했습니다.
 
-- 시스템 시각을 변경하면 집중 완료 기록의 시각·날짜가 잘못될 수 있습니다.
-- 자정을 걸친 휴식이 오늘 휴식 집계에 잘못 반영될 수 있습니다.
-- 설정의 디스크 저장이 실패해도 설정 화면에 저장 성공이 표시될 수 있습니다.
-- macOS 메뉴바 helper의 실행 실패에서 자동 복구가 누락될 수 있습니다. Windows는 이 helper를 사용하지 않습니다.
+- [PR #7](https://github.com/b1ueseoyoung/focus-buddy/pull/7): 시스템 시각 보정 후 집중량을 보존하면서 완료 시각·날짜를 기록합니다.
+- [PR #6](https://github.com/b1ueseoyoung/focus-buddy/pull/6): 자정을 넘긴 휴식과 정확히 자정에 완료한 집중을 오늘 기록에 포함합니다.
+- [PR #8](https://github.com/b1ueseoyoung/focus-buddy/pull/8): 디스크 읽기·저장 오류를 표시하고, 저장 실패 시 성공 표시와 기존 코골이 설정 덮어쓰기를 막습니다.
+- [PR #9](https://github.com/b1ueseoyoung/focus-buddy/pull/9): macOS helper 실행 실패를 재시도하고 복구 동안 임시 메뉴를 제공합니다. Windows는 이 helper를 사용하지 않습니다.
+
+시각 보정은 마지막 정상 tick 이후 관측한 offset을 적용하며 10ms 이하 차이는 읽기 오차로 취급합니다. helper가 계속 실행에 실패하면 기존 1초 재시도를 유지합니다. 살아 있지만 준비 신호를 보내지 않는 helper는 이번 복구 검사 범위에 포함하지 않습니다.
 
 ## 라이선스와 이미지 출처
 

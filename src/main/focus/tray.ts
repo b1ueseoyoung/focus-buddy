@@ -22,22 +22,41 @@ export function createFocusTray(deps:FocusTrayDeps):FocusTray {
   image.addRepresentation({scaleFactor:2,buffer:readFileSync(trayIcon2x)});
   if(image.isEmpty())throw new Error('Focus Buddy tray icon is empty');
   image.setTemplateImage(process.platform==='darwin');
-  const tray=process.platform==='darwin'?null:new Tray(image);retainedTray=tray;
+  let tray=process.platform==='darwin'?null:new Tray(image);retainedTray=tray;
   const animation=process.platform==='win32'&&tray?createWindowsTrayAnimation(tray,join(dirname(trayIcon),'menu-cat')):null;
   tray?.on('double-click',deps.showMain);
-  app.once('will-quit',()=>{animation?.dispose();tray?.destroy();if(retainedTray===tray)retainedTray=null;});
+  let quitting=false;
+  app.once('will-quit',()=>{quitting=true;animation?.dispose();tray?.destroy();if(retainedTray===tray)retainedTray=null;});
   console.log('[Focus Buddy tray]',JSON.stringify({build:'dot-cat-r5',pid:process.pid,imageEmpty:image.isEmpty(),imageSize:image.getSize(),scaleFactors:image.getScaleFactors(),template:image.isTemplateImage()}));
-  let items:TrayItem[]=[];let signature='';let menu:Menu|null=null;let title='';
+  let items:TrayItem[]=[];let signature='';let menu:Menu|null=null;let title='';let tooltip='Focus Buddy';
+  const installElectronMenu=():void=>{
+    if(!tray)return;
+    menu=Menu.buildFromTemplate(items.map((item,i)=>({id:i===0?'timer':undefined,label:item.label,enabled:item.enabled,click:()=>{Promise.resolve(item.click()).catch(e=>console.error('focus menu command failed',e));}})));
+    tray.setContextMenu(menu);
+  };
   const native=process.platform==='darwin'?createNativeMenu(trayIcon,id=>{
     const item=items[id];if(item?.enabled)Promise.resolve(item.click()).catch(e=>console.error('focus menu command failed',e));
+  },ready=>{
+    if(quitting)return;
+    if(ready){
+      if(tray){tray.destroy();if(retainedTray===tray)retainedTray=null;tray=null;menu=null;}
+    }else if(!tray){
+      tray=new Tray(image);retainedTray=tray;
+      tray.on('double-click',deps.showMain);
+      tray.setTitle(title);tray.setToolTip(tooltip);
+      // A new fallback needs its controls even if the timer signature is unchanged.
+      installElectronMenu();
+    }
   }):null;
   const update=(s:Snapshot):void=>{
     const seconds=Math.max(0,Math.ceil(s.remainingMs/1000));const clock=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
     const phase=(s.phase??s.suggestedNext??'focus')==='focus'?'집중':(s.phase??s.suggestedNext)==='long_break'?'긴 휴식':'휴식';
     const status=s.status==='paused'?'일시정지':s.status==='running'?'진행 중':'대기';
     title=clock;
+    tooltip=`Focus Buddy · ${phase} ${clock} · ${status}`;
     // Windows has no status-item title; keep time in the tooltip and first menu row.
-    tray?.setToolTip(`Focus Buddy · ${phase} ${clock} · ${status}`);
+    if(process.platform==='darwin')tray?.setTitle(title);
+    tray?.setToolTip(tooltip);
     animation?.update(s.status,s.phase??s.suggestedNext??'focus');
     const label=`${phase} ${clock} · ${status}`;
     const nextSignature=`${s.status}/${s.phase}/${s.suggestedNext}/${deps.widgetEnabled()}/${deps.scale()}`;
@@ -59,21 +78,26 @@ export function createFocusTray(deps:FocusTrayDeps):FocusTray {
         {label:'기본 화면 열기',enabled:true,click:deps.showMain},
         {label:'Focus Buddy 종료',enabled:true,click:()=>{setImmediate(()=>app.quit());}},
       ];
-      if(tray){menu=Menu.buildFromTemplate(items.map((item,i)=>({id:i===0?'timer':undefined,label:item.label,enabled:item.enabled,click:()=>{Promise.resolve(item.click()).catch(e=>console.error('focus menu command failed',e));}})));tray.setContextMenu(menu);}
+      installElectronMenu();
     } else {
       if(items[0])items[0].label=label;
       const timer=menu?.getMenuItemById('timer');if(timer)timer.label=label;
     }
-    native?.update(title,`Focus Buddy · ${phase} ${clock} · ${status}`,items.map((item,id)=>({id,label:item.label,enabled:item.enabled})),s.status,s.phase??s.suggestedNext??'focus');
+    native?.update(title,tooltip,items.map((item,id)=>({id,label:item.label,enabled:item.enabled})),s.status,s.phase??s.suggestedNext??'focus');
   };
   return {update,items:()=>items,title:()=>title,
     testNativeAction:label=>{
       if(process.env.FOCUS_BUDDY_E2E!=='1')throw Error('Native menu test disabled');
       const id=items.findIndex(item=>item.label===label&&item.enabled);
       if(id<0)throw Error(`Native menu item unavailable: ${label}`);
-      if(native)native.testAction(id);
+      if(native&&!tray)native.testAction(id);
       else {const item=menu?.items[id];if(!item)throw Error('Electron tray menu unavailable');item.click(undefined,undefined);}
     },
-    testNativeOpen:()=>{if(process.env.FOCUS_BUDDY_E2E!=='1')throw Error('Native menu test disabled');if(native)native.testOpen();else tray?.popUpContextMenu();},
-    diagnostics:()=>({build:'dot-cat-r5-native',pid:process.pid,title,bounds:tray?.getBounds(),imageSize:image.getSize(),imageEmpty:image.isEmpty(),retained:native?true:retainedTray===tray,destroyed:tray?.isDestroyed()??false,scaleFactors:image.getScaleFactors(),template:image.isTemplateImage(),...(native?.diagnostics()??{backend:'Electron',ready:tray!==null&&!tray.isDestroyed(),animation:animation?.diagnostics()})})};
+    testNativeOpen:()=>{if(process.env.FOCUS_BUDDY_E2E!=='1')throw Error('Native menu test disabled');if(native&&!tray)native.testOpen();else tray?.popUpContextMenu();},
+    diagnostics:()=>{
+      const helper=native?.diagnostics();
+      const electronReady=tray!==null&&!tray.isDestroyed();
+      const active=helper?(electronReady?{backend:'Electron',ready:true,fallback:true,native:helper}:{...helper,fallback:false}):{backend:'Electron',ready:electronReady,animation:animation?.diagnostics()};
+      return {build:'dot-cat-r5-native',pid:process.pid,title,bounds:tray?.getBounds(),imageSize:image.getSize(),imageEmpty:image.isEmpty(),retained:native?true:retainedTray===tray,destroyed:tray?.isDestroyed()??false,scaleFactors:image.getScaleFactors(),template:image.isTemplateImage(),...active};
+    }};
 }
