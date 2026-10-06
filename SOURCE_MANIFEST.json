@@ -68,8 +68,8 @@
     },
     {
       "path": "docs/WINDOWS.md",
-      "bytes": 6117,
-      "sha256": "a3e50aace0edb5e9bc302e8d1b09ce1895d5ddd1edaa7de261c7735b26df2597"
+      "bytes": 6456,
+      "sha256": "bcbfcd47cf3ab86a1d05260d0fb84b7d41eb80666a41cdf3796c40f0abe30544"
     },
     {
       "path": "e2e/candidate.e2e.test.ts",
@@ -83,8 +83,8 @@
     },
     {
       "path": "e2e/helpers.ts",
-      "bytes": 11021,
-      "sha256": "b1b127741587245ba56cd74cfc5ef077aeb3d2f27c1521b8f9a523eab20f485c"
+      "bytes": 11269,
+      "sha256": "4a1ac66d3ce72246fc2967e537cfe89c6ce6690b1b06eace063e76e5f7ce0a76"
     },
     {
       "path": "e2e/profile-paths.test.ts",
@@ -417,14 +417,24 @@
       "sha256": "574a0374b39c4b95ec71cbf0910c4ecf9ce7279fe47c67f0c9cc09d51162033d"
     },
     {
+      "path": "src/main/focus/tray-image-cache.test.ts",
+      "bytes": 2466,
+      "sha256": "3c7f3869d1942e68b8e6ce73677e65baaff57854cad1f9c821223468c4e3155d"
+    },
+    {
+      "path": "src/main/focus/tray-image-cache.ts",
+      "bytes": 851,
+      "sha256": "d2ab7c26307248437694a28a8d481395721fdf842791f624e63b2cbf78178e5c"
+    },
+    {
       "path": "src/main/focus/tray.ts",
       "bytes": 6334,
       "sha256": "9e1b5137859b82e103970bc74c9375088e0adf7350539cfac59d8d90d7a3e4ad"
     },
     {
       "path": "src/main/focus/windows-tray-animation.ts",
-      "bytes": 2007,
-      "sha256": "f2d209f9a9fa4c274c1994b7d5d85f2e28d1da156b07ab2a340e4bbf46547915"
+      "bytes": 2307,
+      "sha256": "6d80dcd921c587fc3e5ae0419f9c37a5ab812ab7005bd1513a5da25a2ce9532b"
     },
     {
       "path": "src/main/focus/windows.ts",

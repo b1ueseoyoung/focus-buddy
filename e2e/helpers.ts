@@ -217,6 +217,9 @@ export async function launchCandidate(options: { userDataDir?: string; executabl
       close,
     };
   } catch (error) {
+    // The launch handle/environment alone does not prove which profile loaded.
+    // If the actual PID/profile could not be verified, close deliberately refuses
+    // shutdown; retain that process/profile for diagnosis rather than bypassing it.
     await close().catch((cleanup) => console.warn(`[E2E launch cleanup] ${String(cleanup)}`));
     throw error;
   }

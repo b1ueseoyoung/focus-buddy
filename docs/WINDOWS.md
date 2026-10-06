@@ -42,9 +42,11 @@ On macOS, `bun run package:win` can download and assemble the Windows payload. I
 
 ## Verification evidence
 
-Local host: macOS arm64. Strict TypeScript, the existing 174 unit tests and five new tray-animation/theme tests pass. Windows x64 cross-packaging and payload audit passed: 175 files, 28 compiled output files matched, six runtime dependency packages and 12 notice files; no macOS helper or private data was found. This only verifies packaging on the Mac host. macOS regression integration and exact-commit Windows CI are tracked in [PR #1](https://github.com/b1ueseoyoung/focus-buddy/pull/1); those results must be assessed separately.
+Local host: macOS arm64. Strict TypeScript, the existing 174 unit tests and eight new tray-animation/theme/image-failure tests pass. Windows x64 cross-packaging and payload audit passed: 175 files, 28 compiled output files matched, six runtime dependency packages and 12 notice files; no macOS helper or private data was found. This only verifies packaging on the Mac host. macOS regression integration and exact-commit Windows CI are tracked in [PR #1](https://github.com/b1ueseoyoung/focus-buddy/pull/1); those results must be assessed separately.
 
 The [Windows workflow](../.github/workflows/windows.yml) runs on standard `windows-2022` GitHub-hosted runners for this public repository, with `contents: read`, no secrets, no artifact upload and no release step. PR checkout uses `pull_request.head.sha`; the log shows the exact commit. It runs the locked install, source-manifest check, typecheck, unit tests, development and packaged Electron integration, NSIS build and payload audits. Test profiles are restricted to their own direct child directories under the OS temporary directory, including symlink/canonical-path checks.
+
+Test cleanup requires the actual Electron PID and its active isolated profile to match before requesting shutdown. If initial identity verification fails, the harness reports the error and leaves the unverified process/profile untouched for diagnosis; a launcher PID or application handle alone does not authorize cleanup.
 
 Automated integration invokes actual AppKit/Electron menu callbacks and renderer UI with a controlled timer/suspend fixture. It does **not** prove physical Windows notification-area clicks, taskbar overflow placement, monitor/DPI/theme appearance, transparent-margin hit testing, real sleep/logoff, notification delivery, installer interaction or uninstall. **Manual Windows GUI validation remains unverified.** No public binary release is provided.
 
