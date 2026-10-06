@@ -9,8 +9,7 @@ Start with Windows 10/11 x64, Node.js 22 and Bun 1.4.2. No Swift, Visual Studio,
 ```powershell
 git clone https://github.com/b1ueseoyoung/focus-buddy.git
 cd focus-buddy
-# Until merged, check out the Windows PR branch:
-git switch windows/desktop-support
+git switch main
 bun install --frozen-lockfile --ignore-scripts
 node node_modules/electron/install.js
 bun run typecheck
@@ -43,10 +42,12 @@ On macOS, `bun run package:win` can download and assemble the Windows payload. I
 
 ## Verification evidence
 
-Local host: macOS arm64. Strict TypeScript, the existing 174 unit tests and five new tray-animation/theme tests pass. Windows x64 cross-packaging and payload audit passed: 175 files, 28 compiled output files matched, six runtime dependency packages and 12 notice files; no macOS helper or private data was found. This only verifies packaging on the Mac host. macOS regression integration and exact-commit Windows CI are tracked in the draft PR checks; those results must be assessed separately.
+Local host: macOS arm64. Strict TypeScript, the existing 174 unit tests and five new tray-animation/theme tests pass. Windows x64 cross-packaging and payload audit passed: 175 files, 28 compiled output files matched, six runtime dependency packages and 12 notice files; no macOS helper or private data was found. This only verifies packaging on the Mac host. macOS regression integration and exact-commit Windows CI are tracked in [PR #1](https://github.com/b1ueseoyoung/focus-buddy/pull/1); those results must be assessed separately.
 
 The [Windows workflow](../.github/workflows/windows.yml) runs on standard `windows-2022` GitHub-hosted runners for this public repository, with `contents: read`, no secrets, no artifact upload and no release step. PR checkout uses `pull_request.head.sha`; the log shows the exact commit. It runs the locked install, source-manifest check, typecheck, unit tests, development and packaged Electron integration, NSIS build and payload audits. Test profiles are restricted to their own direct child directories under the OS temporary directory, including symlink/canonical-path checks.
 
-Automated integration invokes actual AppKit/Electron menu callbacks and renderer UI with a controlled timer/suspend fixture. It does **not** prove physical Windows notification-area clicks, taskbar overflow placement, monitor/DPI/theme appearance, transparent-margin hit testing, real sleep/logoff, notification delivery, installer interaction or uninstall. **Manual Windows GUI validation remains unverified.** No merge or public binary release is performed.
+Automated integration invokes actual AppKit/Electron menu callbacks and renderer UI with a controlled timer/suspend fixture. It does **not** prove physical Windows notification-area clicks, taskbar overflow placement, monitor/DPI/theme appearance, transparent-margin hit testing, real sleep/logoff, notification delivery, installer interaction or uninstall. **Manual Windows GUI validation remains unverified.** No public binary release is provided.
+
+The existing [known issues](../README.md#알려진-문제) remain outside the Windows support change: wall-clock changes can affect completion timestamps/dates, breaks crossing midnight can be miscounted in today's summary, and settings can report success after disk persistence fails. The separate macOS helper launch-recovery issue does not apply to Windows. These issues are deferred to a dedicated follow-up fix PR.
 
 Implementation references: [Electron Tray](https://www.electronjs.org/docs/latest/api/tray), [system taskbar theme](https://www.electronjs.org/docs/latest/api/native-theme), [window session/workspace behavior](https://www.electronjs.org/docs/latest/api/base-window), and [Windows notifications](https://www.electronjs.org/docs/latest/tutorial/notifications).

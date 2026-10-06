@@ -33,8 +33,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 9250,
-      "sha256": "8c659f5857be8651268c9f4324522f07469804294bcc96744a17169e9adc8697"
+      "bytes": 9745,
+      "sha256": "7c76c3340193e92322871984a74f70abc56c76eb193b98153b6f01d17008592c"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -68,8 +68,8 @@
     },
     {
       "path": "docs/WINDOWS.md",
-      "bytes": 5734,
-      "sha256": "49614dd6f080fb4ad99a3a40787e0072ff31558303e8f35327681de220591f97"
+      "bytes": 6117,
+      "sha256": "a3e50aace0edb5e9bc302e8d1b09ce1895d5ddd1edaa7de261c7735b26df2597"
     },
     {
       "path": "e2e/candidate.e2e.test.ts",

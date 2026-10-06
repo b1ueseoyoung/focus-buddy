@@ -48,14 +48,14 @@ Windows 10/11 x64와 Node.js 22, Bun 1.4.2를 준비하고 PowerShell에서 실�
 ```powershell
 git clone https://github.com/b1ueseoyoung/focus-buddy.git
 cd focus-buddy
-git switch windows/desktop-support
+git switch main
 bun install --frozen-lockfile --ignore-scripts
 node node_modules/electron/install.js
 bun run build:win
 bun run start
 ```
 
-`windows/desktop-support`는 병합 전 초안 PR 브랜치입니다. 개발 중 자동 새로고침은 `bun run dev`를 사용하세요. 시작하면 작업표시줄 알림 영역(숨겨진 아이콘 포함)의 고양이를 오른쪽 클릭해 **위젯 켜기**, **설정 및 작업명**, **오늘 기록**을 선택합니다. 두 번 클릭하면 설정 창이 열립니다. 창을 닫으면 숨겨지고, 트레이의 **Focus Buddy 종료**로 앱을 종료합니다.
+개발 중 자동 새로고침은 `bun run dev`를 사용하세요. 시작하면 작업표시줄 알림 영역(숨겨진 아이콘 포함)의 고양이를 오른쪽 클릭해 **위젯 켜기**, **설정 및 작업명**, **오늘 기록**을 선택합니다. 두 번 클릭하면 설정 창이 열립니다. 창을 닫으면 숨겨지고, 트레이의 **Focus Buddy 종료**로 앱을 종료합니다.
 
 ```powershell
 bun run typecheck
@@ -93,6 +93,15 @@ FOCUS_BUDDY_CANDIDATE_ELECTRON="$PWD/release/mac-arm64/Focus Buddy Candidate.app
 최초 공개 버전의 검증은 [VERIFICATION.md](docs/VERIFICATION.md), Windows 변경의 검증은 [WINDOWS.md](docs/WINDOWS.md)에 기록합니다. 물리적인 창 드래그·투명 여백 클릭, 실제 절전/로그오프·강제 종료, Intel macOS와 Linux는 별도로 확인하지 않았습니다. 모의 절전·AppKit/Electron 메뉴 테스트 명령은 실제 OS 입력을 검증하지 않습니다. Windows CI는 PR의 정확한 커밋을 검사하며 실행 링크와 범위는 Windows 안내에서 확인할 수 있습니다.
 
 macOS 빌드는 로컬 ad-hoc 서명입니다. Developer ID 서명·공증·자동 업데이트·App Store 배포를 준비한 패키지가 아닙니다. 공개 후보 소스 ZIP에는 Git 이력, `node_modules`, 개인 증거 파일과 사용자 데이터가 없으며, 바이너리는 해당 환경에서 다시 빌드합니다.
+
+### 알려진 문제
+
+다음 기존 문제는 Windows 지원 변경에서 수정하지 않았으며 별도 수정 PR의 대상입니다.
+
+- 시스템 시각을 변경하면 집중 완료 기록의 시각·날짜가 잘못될 수 있습니다.
+- 자정을 걸친 휴식이 오늘 휴식 집계에 잘못 반영될 수 있습니다.
+- 설정의 디스크 저장이 실패해도 설정 화면에 저장 성공이 표시될 수 있습니다.
+- macOS 메뉴바 helper의 실행 실패에서 자동 복구가 누락될 수 있습니다. Windows는 이 helper를 사용하지 않습니다.
 
 ## 라이선스와 이미지 출처
 
