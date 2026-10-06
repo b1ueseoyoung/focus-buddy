@@ -33,8 +33,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 9143,
-      "sha256": "d67f1706adeb0fa4344692e937ee22dcb4d38fd4ff166782b163621ae86c7892"
+      "bytes": 9250,
+      "sha256": "8c659f5857be8651268c9f4324522f07469804294bcc96744a17169e9adc8697"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -68,13 +68,13 @@
     },
     {
       "path": "docs/WINDOWS.md",
-      "bytes": 5548,
-      "sha256": "537164a00665aa9fefffba754cd60461fc2a8120909cf894e51e9df321880fe7"
+      "bytes": 5734,
+      "sha256": "49614dd6f080fb4ad99a3a40787e0072ff31558303e8f35327681de220591f97"
     },
     {
       "path": "e2e/candidate.e2e.test.ts",
-      "bytes": 21327,
-      "sha256": "825078ea03c9a0153e559f086654b98a84c3d047a28b3601f0b7de492fa9c05e"
+      "bytes": 23180,
+      "sha256": "3bbfe91fdbedb59dc9f2859bef967ed804fa132b0b4c40a6d875838eefcf4e92"
     },
     {
       "path": "e2e/helper-timeouts.test.ts",

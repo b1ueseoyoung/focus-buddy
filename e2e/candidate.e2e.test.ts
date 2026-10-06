@@ -257,6 +257,9 @@ desktopTest('actual menu callbacks start, pause, resume and reset; widget cat an
   const mini = await app.mini();
   await mini.emulateMedia({ reducedMotion: 'no-preference' });
   const cat = mini.locator('.pixel-cat');
+  const settlePaint = (): Promise<void> => within('widget animation render settle', () => mini.evaluate(() => new Promise<void>((done) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => done()));
+  })));
   await waitFor(() => cat.getAttribute('data-animation-ready'), (ready) => ready === 'true');
   expect(await waitFor(() => cat.evaluate((element) => (element as HTMLImageElement).naturalWidth), (width) => width > 0)).toBeGreaterThan(0);
 
@@ -270,6 +273,7 @@ desktopTest('actual menu callbacks start, pause, resume and reset; widget cat an
   await app.nativeAction('일시정지');
   await waitFor(() => app.snapshot(), (state) => state.status === 'paused');
   await waitFor(() => cat.getAttribute('data-paused'), (paused) => paused === 'true');
+  await settlePaint();
   const pausedFrame = await cat.getAttribute('src');
   // Observe longer than one 500ms focus animation frame, using the real renderer clock.
   await new Promise((done) => setTimeout(done, 650));
@@ -294,12 +298,36 @@ desktopTest('actual menu callbacks start, pause, resume and reset; widget cat an
   await app.advance(61000);
   expect((await app.snapshot()).today.completedFocusCount).toBe(1);
   await waitFor(() => cat.getAttribute('data-animation'), (state) => state === 'rest');
+  await mini.getByRole('button', { name: '▶ 시작', exact: true }).waitFor({ state: 'visible' });
+  // Arm before the native action so a busy runner cannot miss the short stretch.
+  // This observes attributes only; it never changes the cat or application state.
+  const breakTransition = await cat.evaluateHandle((element) => {
+    const seen = { stretch: false, restAfterStretch: false };
+    const observer = new MutationObserver(() => {
+      const animation = element.getAttribute('data-animation');
+      if (animation === 'stretch') seen.stretch = true;
+      if (animation === 'rest' && seen.stretch) {
+        seen.restAfterStretch = true;
+        observer.disconnect();
+      }
+    });
+    observer.observe(element, { attributes: true, attributeFilter: ['data-animation'] });
+    return seen;
+  });
   await app.nativeAction('시작');
   await waitFor(() => app.snapshot(), (state) => state.status === 'running' && state.phase === 'short_break');
-  await waitFor(() => cat.getAttribute('data-animation'), (state) => state === 'rest');
+  await mini.getByRole('button', { name: 'Ⅱ 일시정지', exact: true }).waitFor({ state: 'visible' });
+  await waitFor(() => mini.locator('.pixel-phase').textContent(), (phase) => phase === '휴식', 15000, 'short-break widget render');
+  // The preceding focus completion also ends in rest. Observe the new session's
+  // stretch first so stale rest cannot satisfy the reduced-motion precondition.
+  await waitFor(() => breakTransition.jsonValue(), (seen) => seen.stretch && seen.restAfterStretch, 15000, 'new short-break stretch to rest');
+  await breakTransition.dispose();
+  await waitFor(() => cat.getAttribute('data-animation'), (state) => state === 'rest', 15000, 'short-break rest after stretch');
 
   // Reduced motion is an OS/media preference, independent of the timer's test clock.
   await mini.emulateMedia({ reducedMotion: 'reduce' });
+  await waitFor(() => mini.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches), Boolean, 15000, 'reduced-motion media applied');
+  await settlePaint();
   const reducedFrame = await cat.getAttribute('src');
   await new Promise((done) => setTimeout(done, 650));
   expect(await cat.getAttribute('src')).toBe(reducedFrame);

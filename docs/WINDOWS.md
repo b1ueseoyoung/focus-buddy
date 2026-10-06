@@ -28,6 +28,8 @@ Data is local to `%APPDATA%\Focus Buddy Candidate`. There is no migration from a
 
 ## Package and test
 
+If you opened the unpacked app above, exit it from the tray before running these commands. Close any running unpacked copy before rebuilding a package so Windows can replace its files.
+
 ```powershell
 $env:FOCUS_BUDDY_CANDIDATE_ELECTRON = (Resolve-Path '.\release\win-unpacked\Focus Buddy Candidate.exe').Path
 bun run test:e2e
