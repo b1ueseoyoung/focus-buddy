@@ -1,0 +1,33 @@
+{
+  "kind": "menu-only hand-drawn pixel face",
+  "canvas": [
+    18,
+    18
+  ],
+  "retina": [
+    36,
+    36
+  ],
+  "frames": [
+    "open",
+    "half",
+    "closed",
+    "open"
+  ],
+  "durationMs": [
+    4600,
+    100,
+    100,
+    200
+  ],
+  "loopMs": 5000,
+  "alpha": "binary transparent",
+  "resampling": "nearest neighbor",
+  "anchor": "fixed ears and face outline; only eyes change",
+  "sha256": [
+    "f58bcdfc2c584dc4a32a3fc52eaed428f104fc9180d84997d6d7f401499d81c6",
+    "c2b1cd2c5cf4a8c2052a95d4152983e41a7e6184fc2c94ec9e95fb08608dc249",
+    "ef51981dfcc4c29986402501388fd1520410122cbf07fa430a44064dfa2e240c",
+    "f58bcdfc2c584dc4a32a3fc52eaed428f104fc9180d84997d6d7f401499d81c6"
+  ]
+}

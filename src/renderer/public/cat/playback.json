@@ -1,0 +1,99 @@
+{
+  "status": "generated-and-reviewed",
+  "generator": {
+    "spriteGenCommit": "b058341f7543f3adcbea227bd4e6b7587895b1bc",
+    "rowProvider": "Codex builtin imagegen; gen-set CLI unsupported model",
+    "curation": "common scale 0.92; integer offsets align body ledge at94; wake retains open-eyed final frame"
+  },
+  "canvas": {
+    "width": 264,
+    "height": 180
+  },
+  "anchor": {
+    "ledgeY": 94
+  },
+  "states": {
+    "sleep": {
+      "frames": [
+        {
+          "file": "sleep-frame-0.png",
+          "durationMs": 500
+        },
+        {
+          "file": "sleep-frame-1.png",
+          "durationMs": 500
+        },
+        {
+          "file": "sleep-frame-2.png",
+          "durationMs": 500
+        },
+        {
+          "file": "sleep-frame-3.png",
+          "durationMs": 500
+        }
+      ],
+      "loop": true
+    },
+    "wake": {
+      "frames": [
+        {
+          "file": "wake-frame-0.png",
+          "durationMs": 200
+        },
+        {
+          "file": "wake-frame-1.png",
+          "durationMs": 200
+        },
+        {
+          "file": "wake-frame-2.png",
+          "durationMs": 200
+        }
+      ],
+      "loop": false,
+      "next": "stretch"
+    },
+    "stretch": {
+      "frames": [
+        {
+          "file": "stretch-frame-0.png",
+          "durationMs": 200
+        },
+        {
+          "file": "stretch-frame-1.png",
+          "durationMs": 200
+        },
+        {
+          "file": "stretch-frame-2.png",
+          "durationMs": 200
+        },
+        {
+          "file": "stretch-frame-3.png",
+          "durationMs": 200
+        }
+      ],
+      "loop": false,
+      "next": "rest"
+    },
+    "rest": {
+      "frames": [
+        {
+          "file": "rest-frame-0.png",
+          "durationMs": 333
+        },
+        {
+          "file": "rest-frame-1.png",
+          "durationMs": 333
+        },
+        {
+          "file": "rest-frame-2.png",
+          "durationMs": 333
+        },
+        {
+          "file": "rest-frame-3.png",
+          "durationMs": 333
+        }
+      ],
+      "loop": true
+    }
+  }
+}

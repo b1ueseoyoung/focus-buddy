@@ -1,0 +1,2 @@
+# Optional: regenerate the hand-drawn menu-face PNGs only.
+Pillow==12.3.0

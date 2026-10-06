@@ -1,0 +1,41 @@
+{
+  "name": "focus-buddy",
+  "version": "0.1.0-candidate.1",
+  "private": true,
+  "license": "MIT",
+  "description": "Local macOS pixel-cat Pomodoro app",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "node scripts/build-native-menu.cjs && electron-vite dev",
+    "build": "node scripts/build-native-menu.cjs && electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "bun test src/shared/focus src/main/focus src/renderer/src/focus",
+    "test:e2e": "bun test e2e --timeout 180000",
+    "package:mac": "bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --dir --publish never",
+    "audit:bundle": "node scripts/audit-bundle.cjs",
+    "verify:source": "node scripts/verify-source.cjs"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zustand": "5.0.3"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "@types/node": "20.17.32",
+    "@types/react": "18.3.20",
+    "@types/react-dom": "18.3.6",
+    "@vitejs/plugin-react": "4.4.1",
+    "electron": "44.5.1",
+    "electron-builder": "24.13.3",
+    "electron-vite": "2.3.0",
+    "playwright": "1.63.0",
+    "typescript": "5.5.4",
+    "vite": "5.4.18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/b1ueseoyoung/focus-buddy.git"
+  }
+}

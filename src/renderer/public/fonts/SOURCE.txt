@@ -1,0 +1,5 @@
+Galmuri 2.40.4 — official https://github.com/quiple/galmuri
+Source commit: 71e1cacf1437a11220307120e63e30bc275312d4
+Unmodified: Galmuri11.woff2, Galmuri11-Bold.woff2, GalmuriMono11.woff2
+Copyright 2019–2025 Lee Minseo. SIL Open Font License 1.1; see LICENSE.txt.
+Bundled locally for offline use. No CDN or runtime font download.

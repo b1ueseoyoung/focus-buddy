@@ -1,0 +1,5 @@
+html,body,#root{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}
+button,input{font:inherit}
+img{display:block;max-width:100%}
+button{padding:0}
+*{box-sizing:border-box}

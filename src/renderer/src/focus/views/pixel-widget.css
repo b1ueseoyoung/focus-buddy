@@ -1,0 +1,188 @@
+@font-face { font-family:'Galmuri11'; src:url('/fonts/Galmuri11.woff2') format('woff2'); font-weight:400; font-display:swap; }
+@font-face { font-family:'Galmuri11'; src:url('/fonts/Galmuri11-Bold.woff2') format('woff2'); font-weight:700; font-display:swap; }
+@font-face { font-family:'GalmuriMono11'; src:url('/fonts/GalmuriMono11.woff2') format('woff2'); font-weight:400; font-display:swap; }
+html,
+body,
+#root {
+  margin: 0;
+  background: transparent;
+}
+.pixel-widget {
+  position: relative;
+  width: 280px;
+  height: 310px;
+  color: #33291f;
+  font-family:
+    'Galmuri11', sans-serif;
+  user-select: none;
+}
+.pixel-panel {
+  box-sizing: border-box;
+  position: absolute;
+  left: 12px;
+  top: 116px;
+  width: 240px;
+  height: 182px;
+  padding: 23px 12px 12px;
+  background: #faf6e8;
+  border: 3px solid #765338;
+  box-shadow:
+    inset 0 0 0 4px #d5c6ab,
+    0 4px #5b3b27;
+  clip-path: polygon(
+    8px 0,
+    calc(100% - 8px) 0,
+    calc(100% - 8px) 4px,
+    100% 4px,
+    100% calc(100% - 8px),
+    calc(100% - 4px) calc(100% - 8px),
+    calc(100% - 4px) 100%,
+    8px 100%,
+    8px calc(100% - 4px),
+    0 calc(100% - 4px),
+    0 8px,
+    4px 8px,
+    4px 0
+  );
+  -webkit-app-region: drag;
+}
+.pixel-cat {
+  position: absolute;
+  left: 12px;
+  top: 22px;
+  width: 264px;
+  height: auto;
+  image-rendering: pixelated;
+  z-index: 2;
+  pointer-events: none;
+}
+.pixel-phase {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 22px;
+}
+.pixel-clock {
+  text-align: center;
+  font-family: 'GalmuriMono11', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 48px;
+  letter-spacing: -2px;
+  font-weight: 400;
+  line-height: 58px;
+}
+.pixel-start {
+  display: block;
+  margin: 5px auto 0;
+  width: 152px;
+  height: 37px;
+  background: #829567;
+  color: #fffdf1;
+  border: 3px solid #526646;
+  font:
+    700 18px/1 'Galmuri11', sans-serif;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  clip-path: polygon(
+    6px 0,
+    calc(100% - 6px) 0,
+    calc(100% - 6px) 3px,
+    100% 3px,
+    100% calc(100% - 3px),
+    calc(100% - 6px) calc(100% - 3px),
+    calc(100% - 6px) 100%,
+    6px 100%,
+    6px calc(100% - 3px),
+    0 calc(100% - 3px),
+    0 3px,
+    6px 3px
+  );
+}
+.pixel-start:hover {
+  background: #65794f;
+}
+.pixel-start:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.pixel-dots {
+  display: flex;
+  gap: 9px;
+  justify-content: center;
+  margin-top: 11px;
+}
+.pixel-dots span {
+  width: 9px;
+  height: 9px;
+  background: #ccbea7;
+  box-shadow:
+    2px 0 #ccbea7,
+    0 2px #ccbea7;
+}
+.pixel-dots span.done {
+  background: #799065;
+  box-shadow:
+    2px 0 #799065,
+    0 2px #799065;
+}
+.pixel-settings {
+  position: absolute;
+  right: 12px;
+  bottom: 7px;
+  border: 0;
+  background: none;
+  color: #766c5b;
+  font-size: 22px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.pixel-reset { position:absolute; left:12px; bottom:7px; border:0; background:none; color:#766c5b; font-size:22px; line-height:1; cursor:pointer; -webkit-app-region:no-drag; }
+.pixel-reset:disabled { opacity:.4; cursor:default; }
+.size-control { display:flex; gap:12px; align-items:center; font-size:14px; }
+.size-control select { padding:5px; border:1px solid #a1ae8c; border-radius:4px; background:#faf6e8; -webkit-app-region:no-drag; }
+.pixel-widget button:focus-visible {
+  outline: 2px solid #43382a;
+  outline-offset: 3px;
+}
+.pixel-error {
+  position: absolute;
+  left: 12px;
+  bottom: 0;
+  font-size: 11px;
+  color: #872f26;
+  background: #faf6e8;
+}
+.aux-view {
+  padding: 24px;
+  min-height: 100vh;
+  background: #faf6e8;
+  color: #403426;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+}
+.aux-header {
+  -webkit-app-region: drag;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+.aux-view button,
+.aux-view input {
+  -webkit-app-region: no-drag;
+}
+.aux-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+.aux-controls button {
+  background: #e1e6d5;
+  padding: 8px 12px;
+  border: 1px solid #a1ae8c;
+  border-radius: 5px;
+}
+.widget-resize{position:absolute;right:3px;bottom:2px;width:18px;height:18px;border:0;background:#e9dfc9;color:#796347;font-size:17px;line-height:18px;cursor:nwse-resize;touch-action:none;z-index:8;-webkit-app-region:no-drag}.widget-resize:hover,.widget-resize.resizing{background:#d8e0c7;color:#455c31}
+.widget-resize{width:30px;height:30px;line-height:30px;text-align:right;padding-right:3px}
+.pixel-snore{position:absolute;top:3px;left:42px;z-index:5;pointer-events:none;color:#796347;font-family:'Galmuri11',sans-serif;font-size:15px;letter-spacing:3px;animation:quiet-snore 3s steps(6,end) both;text-shadow:1px 1px #faf6e8}@keyframes quiet-snore{0%{opacity:0;transform:translateY(9px)}20%,70%{opacity:1}100%{opacity:0;transform:translateY(-3px)}}@media(prefers-reduced-motion:reduce){.pixel-snore{animation:none}}
+/* Keep secondary controls legible at the default 240px panel width. */
+.pixel-reset{font-family:'Galmuri11',sans-serif;font-size:12px;line-height:22px;padding:0;width:57px;text-align:left;bottom:5px}
