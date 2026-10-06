@@ -140,3 +140,131 @@ test('(7) 50시간 구간은 조각 3개로 나뉘고 합이 보존된다', () =
   ]);
   expect(pieces.reduce((sum, p) => sum + p.ms, 0)).toBe(50 * HOUR);
 });
+
+test('(8) 23:58→00:03에 완료한 휴식은 다음날에도 기록되지만 집중 총계에는 더하지 않는다', () => {
+  const start = Date.UTC(2026, 8, 30, 14, 58); // 09-30 23:58 KST
+  const state = stateOf([session('break', start, 5 * MIN, { phase: 'short_break', plannedSeconds: 300 })]);
+
+  const summary = buildTodaySummary(state, start + 10 * MIN, SEOUL);
+
+  expect(summary.dateKey).toBe('2026-10-01');
+  expect(summary.sessions.map((s) => [s.id, s.status, s.focusSeconds])).toEqual([['break', 'completed', 0]]);
+  expect([summary.focusSeconds, summary.completedFocusCount]).toEqual([0, 0]);
+  expect(summary.byTask).toEqual([]);
+  expect(buildTodaySummary(state, start + 2 * 24 * HOUR, SEOUL).sessions).toEqual([]);
+});
+
+test('(9) 자정 뒤 건너뛴 휴식은 종료일 기록에 포함되고 시작 시각 순서를 유지한다', () => {
+  const midnight = Date.UTC(2026, 8, 30, 15, 0); // 10-01 00:00 KST
+  const state = stateOf([
+    session('completed', midnight - 2 * MIN, 5 * MIN, { phase: 'short_break', plannedSeconds: 300 }),
+    session('skipped', midnight - 5 * MIN, 6 * MIN, {
+      phase: 'long_break', plannedSeconds: 900, status: 'skipped', completedAt: null,
+    }),
+  ]);
+
+  const summary = buildTodaySummary(state, midnight + 10 * MIN, SEOUL);
+
+  expect(summary.sessions.map((s) => [s.id, s.status, s.focusSeconds])).toEqual([
+    ['skipped', 'skipped', 0],
+    ['completed', 'completed', 0],
+  ]);
+  expect([summary.focusSeconds, summary.completedFocusCount]).toEqual([0, 0]);
+  expect(summary.byTask).toEqual([]);
+});
+
+test('(10) 정확히 00:00에 완료한 집중은 새 날짜의 0초 기록과 완료 1회로 일치한다', () => {
+  const start = Date.UTC(2026, 8, 30, 14, 35); // 09-30 23:35 KST
+  const midnight = start + 25 * MIN;
+  const state = stateOf([session('focus', start, 25 * MIN)]);
+
+  const summary = buildTodaySummary(state, midnight, SEOUL);
+
+  expect([summary.focusSeconds, summary.completedFocusCount]).toEqual([0, 1]);
+  expect(summary.byTask).toEqual([{ taskName: '기획서 작성', focusSeconds: 0, completedCount: 1 }]);
+  expect(summary.sessions.map((s) => [s.id, s.status, s.focusSeconds])).toEqual([['focus', 'completed', 0]]);
+  const previous = buildTodaySummary(state, midnight - 1, SEOUL);
+  expect([previous.focusSeconds, previous.completedFocusCount]).toEqual([1500, 0]);
+  expect(previous.sessions.map((s) => [s.id, s.focusSeconds])).toEqual([['focus', 1500]]);
+});
+
+test.each(['running', 'paused'] as const)('(11) 자정 전 시작한 현재 %s 휴식은 새 날짜의 기록에 남는다', (status) => {
+  const start = Date.UTC(2026, 8, 30, 14, 58); // 09-30 23:58 KST
+  const state = stateOf([
+    session('active', start, MIN, {
+      phase: status === 'running' ? 'short_break' : 'long_break',
+      status, endedAt: null, completedAt: null,
+    }),
+    session('stale-running', start, MIN, { phase: 'short_break', status: 'running', endedAt: null, completedAt: null }),
+    session('stale-paused', start, MIN, { phase: 'long_break', status: 'paused', endedAt: null, completedAt: null }),
+  ]);
+  state.active = { sessionId: 'active', status, openSegmentId: null, pausedBy: status === 'paused' ? 'user' : null };
+
+  const summary = buildTodaySummary(state, start + 3 * MIN, SEOUL);
+
+  expect(summary.sessions.map((s) => [s.id, s.status, s.focusSeconds])).toEqual([['active', status, 0]]);
+  expect([summary.focusSeconds, summary.completedFocusCount]).toEqual([0, 0]);
+  expect(summary.byTask).toEqual([]);
+});
+
+test('(12) 오래된 휴식과 오늘 구간 없이 일시정지·중단된 과거 집중을 새로 포함하지 않는다', () => {
+  const start = Date.UTC(2026, 8, 30, 12, 0); // 09-30 21:00 KST
+  const now = Date.UTC(2026, 8, 30, 15, 10); // 10-01 00:10 KST
+  const state = stateOf([
+    session('completed-break', start, 5 * MIN, { phase: 'short_break' }),
+    session('skipped-break', start, MIN, { phase: 'long_break', status: 'skipped', completedAt: null }),
+    session('paused-focus', start, MIN, { status: 'paused', endedAt: null, completedAt: null }),
+    session('interrupted-focus', start, MIN, { status: 'interrupted', endedAt: now, completedAt: null }),
+  ]);
+  state.active = { sessionId: 'paused-focus', status: 'paused', openSegmentId: null, pausedBy: 'user' };
+
+  const summary = buildTodaySummary(state, now, SEOUL);
+
+  expect(summary.sessions).toEqual([]);
+  expect([summary.focusSeconds, summary.completedFocusCount]).toEqual([0, 0]);
+  expect(summary.byTask).toEqual([]);
+});
+
+test.each(['completed', 'skipped'] as const)('(13) %s 휴식의 종료 날짜는 기록 당시 시간대로 판단한다', (status) => {
+  const start = Date.UTC(2026, 8, 30, 14, 58); // 서울 09-30 23:58, 완료는 서울 10-01 / UTC 09-30
+  const state = stateOf([session('break', start, 5 * MIN, {
+    phase: 'short_break', status, completedAt: status === 'completed' ? start + 5 * MIN : null,
+  })]);
+
+  const summary = buildTodaySummary(state, Date.UTC(2026, 9, 1, 0, 30), 'UTC');
+
+  expect(summary.dateKey).toBe('2026-10-01');
+  expect(summary.sessions.map((s) => [s.id, s.status, s.focusSeconds])).toEqual([['break', status, 0]]);
+  expect([summary.focusSeconds, summary.completedFocusCount]).toEqual([0, 0]);
+  expect(summary.byTask).toEqual([]);
+});
+
+test('(14) 현재 휴식은 조회 시간대와 달라도 기록 시간대의 오늘 날짜가 같으면 포함된다', () => {
+  const start = Date.UTC(2026, 8, 30, 14, 58); // 서울 09-30 23:58
+  const state = stateOf([session('break', start, MIN, {
+    phase: 'long_break', status: 'paused', endedAt: null, completedAt: null,
+  })]);
+  state.active = { sessionId: 'break', status: 'paused', openSegmentId: null, pausedBy: 'user' };
+
+  const summary = buildTodaySummary(state, Date.UTC(2026, 9, 1, 4, 0), 'UTC');
+
+  expect(summary.dateKey).toBe('2026-10-01');
+  expect(summary.sessions.map((s) => [s.id, s.status, s.focusSeconds])).toEqual([['break', 'paused', 0]]);
+  expect([summary.focusSeconds, summary.completedFocusCount]).toEqual([0, 0]);
+  expect(summary.byTask).toEqual([]);
+});
+
+test('(15) 현재 휴식도 기록 시간대가 조회하는 오늘 날짜와 다르면 새로 포함하지 않는다', () => {
+  const start = Date.UTC(2026, 8, 30, 15, 2); // 서울 10-01 00:02
+  const state = stateOf([session('break', start, MIN, {
+    phase: 'short_break', status: 'paused', endedAt: null, completedAt: null,
+  })]);
+  state.active = { sessionId: 'break', status: 'paused', openSegmentId: null, pausedBy: 'user' };
+
+  const summary = buildTodaySummary(state, Date.UTC(2026, 9, 1, 4, 0), LOS_ANGELES); // LA 09-30 21:00
+
+  expect(summary.dateKey).toBe('2026-09-30');
+  expect(summary.sessions).toEqual([]);
+  expect([summary.focusSeconds, summary.completedFocusCount]).toEqual([0, 0]);
+  expect(summary.byTask).toEqual([]);
+});
