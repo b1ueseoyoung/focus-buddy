@@ -1,0 +1,60 @@
+name: Windows
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Validate the exact PR commit, including for draft PRs.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Download pinned Electron runtime
+        run: node node_modules/electron/install.js
+      - name: Verify published source manifest
+        run: bun run verify:source
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Unit tests
+        run: bun run test
+      - name: Build Windows sources
+        run: bun run build:win
+      - name: Development Electron integration
+        run: bun run test:e2e
+      - name: Package Windows x64 application
+        run: node scripts/package-windows.cjs dir
+      - name: Audit Windows payload
+        run: bun run audit:win
+      - name: Packaged Electron integration
+        env:
+          FOCUS_BUDDY_CANDIDATE_ELECTRON: ${{ github.workspace }}\release\win-unpacked\Focus Buddy Candidate.exe
+        run: bun run test:e2e
+      - name: Build unsigned per-user NSIS installer
+        run: node scripts/package-windows.cjs nsis
+      - name: Audit final installer payload
+        run: bun run audit:win
+      # Validation only: no upload, release, signing secrets, or installation/uninstall smoke test.

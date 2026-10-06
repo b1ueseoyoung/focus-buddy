@@ -1,12 +1,29 @@
 // Original candidate-only Playwright harness, written on 2026-10-06.
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { _electron, type ElectronApplication, type Page } from 'playwright';
 import type { Command, DispatchResult, PersistedState, Snapshot } from '../src/shared/focus/types';
+import { isolatedProfilePath } from './profile-paths';
 
 export const candidateRoot = resolve(import.meta.dir, '..');
-const profilePrefix = '/tmp/focus-buddy-candidate-';
 const fixedWall = Date.UTC(2026, 9, 6, 3);
+
+export interface RuntimeInfo {
+  userData: string;
+  tray: {
+    backend: 'AppKit' | 'Electron';
+    ready: boolean;
+    title: string;
+    visible?: boolean;
+    retained: boolean;
+    destroyed: boolean;
+    template: boolean;
+    imageEmpty: boolean;
+    imageSize: { width: number; height: number };
+    bounds?: { width: number; height: number };
+    animation?: { mode: string; frame: number; changes: number; running: boolean; frames: number };
+  };
+}
 
 export async function waitFor<T>(read: () => Promise<T>, accept: (value: T) => boolean, timeoutMs = 15000): Promise<T> {
   const deadline = Date.now() + timeoutMs;
@@ -28,6 +45,7 @@ export interface CandidateApp {
   advance(ms: number, page?: Page): Promise<void>;
   trayAction(label: string): Promise<void>;
   nativeAction(label: string): Promise<void>;
+  runtime(): Promise<RuntimeInfo>;
   windows(): Promise<Array<{ name: 'main' | 'mini'; visible: boolean; alwaysOnTop: boolean }>>;
   mini(): Promise<Page>;
   persisted(): Promise<PersistedState>;
@@ -35,10 +53,7 @@ export interface CandidateApp {
 }
 
 export async function launchCandidate(options: { userDataDir?: string; executablePath?: string } = {}): Promise<CandidateApp> {
-  const userDataDir = options.userDataDir ?? await mkdtemp(profilePrefix);
-  if (!resolve(userDataDir).startsWith(profilePrefix)) {
-    throw new Error('Candidate E2E requires its own /tmp/focus-buddy-candidate-* profile');
-  }
+  const userDataDir = await isolatedProfilePath(options.userDataDir);
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (value !== undefined) env[key] = value;
@@ -67,8 +82,11 @@ export async function launchCandidate(options: { userDataDir?: string; executabl
     const main = await app.firstWindow({ timeout: 20000 });
     await main.waitForFunction(() => Boolean(window.focusBuddy && window.focusBuddyTest), undefined, { timeout: 15000 });
     await main.evaluate(() => window.focusBuddy!.getState());
+    const runtime = (): Promise<RuntimeInfo> => main.evaluate(() => window.electron!.ipcRenderer.invoke('focus:runtime-info'));
+    await waitFor(runtime, (info) => info.tray.ready === true);
+    const nativeAction = (label: string): Promise<void> => main.evaluate((value) => window.electron!.ipcRenderer.invoke('focus:native-menu-test', value), label);
     return {
-      app, main, userDataDir,
+      app, main, userDataDir, runtime,
       snapshot: (page = main) => page.evaluate(() => window.focusBuddy!.getState()),
       async dispatch(command, page = main) {
         const result: DispatchResult = await page.evaluate((cmd) => window.focusBuddy!.dispatch(cmd), command);
@@ -76,8 +94,10 @@ export async function launchCandidate(options: { userDataDir?: string; executabl
         return result.snapshot;
       },
       advance: (ms, page = main) => page.evaluate((value) => window.focusBuddyTest!.advance(value), ms),
-      trayAction: (label) => main.evaluate((value) => window.focusBuddyTest!.trayClick(value), label),
-      nativeAction: (label) => main.evaluate((value) => window.electron!.ipcRenderer.invoke('focus:native-menu-test', value), label),
+      // Calls the real AppKit action dispatcher or Electron MenuItem.click callback.
+      // Callers await observable state after asynchronous native menu actions.
+      trayAction: nativeAction,
+      nativeAction,
       windows: () => main.evaluate(() => window.focusBuddyTest!.windowsInfo()),
       async mini() {
         const page = await waitFor(async () => app.windows().find((window) => window.url().includes('#/mini')) ?? null, Boolean);

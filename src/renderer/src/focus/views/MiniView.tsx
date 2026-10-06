@@ -6,7 +6,7 @@ export function MiniView(): JSX.Element {
   const { windows } = useFocus();
   const { scale, setScale } = useWidgetScale();
   useEffect(() => {
-    // macOS forwards mouse moves while clicks pass through, allowing opaque UI to reclaim input.
+    // macOS and Windows forward mouse moves while clicks pass through, allowing opaque UI to reclaim input.
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d", { willReadFrequently: true });
     let previous: boolean | null = null;

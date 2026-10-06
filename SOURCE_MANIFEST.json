@@ -7,14 +7,24 @@
   "publicSourceRepository": "https://github.com/b1ueseoyoung/focus-buddy",
   "files": [
     {
+      "path": ".gitattributes",
+      "bytes": 74,
+      "sha256": "e2e8031c487d8de102ec2104f6323493cc38774e099a10e0aa35a46c341b3b28"
+    },
+    {
+      "path": ".github/workflows/windows.yml",
+      "bytes": 1883,
+      "sha256": "a491cd04b21d149b4512d3ddc98da0324dd4646c38f0ecddeff2e57165ad2697"
+    },
+    {
       "path": ".gitignore",
       "bytes": 101,
       "sha256": "42277cca1e56afcd01ddb22c6ccf760af34c8dc1ef0bc4a91e7cee426e1e2786"
     },
     {
       "path": "ARTWORK-LICENSE.md",
-      "bytes": 2923,
-      "sha256": "92ae063de50dee015f7cab9eae7b3afe6fab0e85fb082dc736e6f8929b0f9f29"
+      "bytes": 3260,
+      "sha256": "80428ca166a1d935c65d631a8c2510e651a36e581d693b59fef9f36c8f2728db"
     },
     {
       "path": "LICENSE",
@@ -23,8 +33,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 6310,
-      "sha256": "eead5860f6a5a7073f60c69ea3076f1d6ffaa487f537f9b853c353c0a17541d0"
+      "bytes": 6966,
+      "sha256": "f3dc6114666f6aca7f073d162176d0d12a6ffffd403c9adc1b678fd2536b4cec"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -38,8 +48,8 @@
     },
     {
       "path": "docs/ASSET_PROVENANCE.md",
-      "bytes": 14609,
-      "sha256": "f661e04a165977797861cfb41698a0de3aac03df15bf4f4a1627d8831b9c540f"
+      "bytes": 15122,
+      "sha256": "5ad490882993c3c1ce247bc757a1ddf7f0032eedb54902781f943ebaeb658a23"
     },
     {
       "path": "docs/DEPENDENCIES.json",
@@ -57,19 +67,34 @@
       "sha256": "5b344d6a3d920a8fb3ced36f63c78b4bf02e22501da582b108da67f3b7bb0ac2"
     },
     {
+      "path": "docs/WINDOWS.md",
+      "bytes": 5548,
+      "sha256": "537164a00665aa9fefffba754cd60461fc2a8120909cf894e51e9df321880fe7"
+    },
+    {
       "path": "e2e/candidate.e2e.test.ts",
-      "bytes": 10291,
-      "sha256": "6043a2e1dffe029ff8ce7296dba21cf2d6fb441aad85b59d1b632367d99cf8d1"
+      "bytes": 19939,
+      "sha256": "0891470e9f59750b22f0dc43f72d97b4300e0277669164f10558080e1e048a7a"
     },
     {
       "path": "e2e/helpers.ts",
-      "bytes": 4869,
-      "sha256": "222367abf0cf5ced2c4ead18e1f7ca8be7e9780341c94137c3e28f1a5ecdf78d"
+      "bytes": 5543,
+      "sha256": "d92111e2cb03af92aa5769289bedc72d29cd7338b4130022e87651560b0ccf16"
+    },
+    {
+      "path": "e2e/profile-paths.test.ts",
+      "bytes": 1555,
+      "sha256": "f0997f8671aab35821bb26c4e1cb2fd24a5dabf4682e58176fe006a0fcc1a3d0"
+    },
+    {
+      "path": "e2e/profile-paths.ts",
+      "bytes": 1074,
+      "sha256": "b63b1a929f29a89f43c26c263f1be9df5ba5fb48cb156449fa997ff78ec6f385"
     },
     {
       "path": "electron-builder.yml",
-      "bytes": 632,
-      "sha256": "07f2135e8e63b2e8902e4e96a188d722361768f9373712b216d3239c80244eba"
+      "bytes": 1100,
+      "sha256": "8c6bac2bebd659eea34f604c57d9161848a5bf7e286aebacc9663ddd15d70aff"
     },
     {
       "path": "electron.vite.config.ts",
@@ -138,8 +163,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 1398,
-      "sha256": "681d3a53317389dbb518aec7d5a53a024953ea517bbaab5e2031a8dfb51dbbe8"
+      "bytes": 1783,
+      "sha256": "afc9a35323ecd63147b195f26af22bf3c6de88b029b7b172b542188966792b6d"
     },
     {
       "path": "preview/settings@2x.png",
@@ -160,6 +185,11 @@
       "path": "resources/icon.icns",
       "bytes": 1760356,
       "sha256": "30fef191a5965a50b733d322e7055dce64ba01db6eeed79d5db96f2af7a68caf"
+    },
+    {
+      "path": "resources/icon.ico",
+      "bytes": 124854,
+      "sha256": "87bdd00ccfd62dfc3a9f2aca265a7665092215656f86eec6ca908a5b37cfe7f0"
     },
     {
       "path": "resources/icon.png",
@@ -268,13 +298,13 @@
     },
     {
       "path": "scripts/audit-bundle.cjs",
-      "bytes": 3702,
-      "sha256": "4310f4eb32612060ed4b2346c1530e721de2bdf721046aa1af3cf042b3c856e1"
+      "bytes": 5217,
+      "sha256": "42a4ea82fe69645d6499990b8256a5aeebd8291182506f70d21a96db72e2f441"
     },
     {
       "path": "scripts/build-native-menu.cjs",
-      "bytes": 443,
-      "sha256": "3b043170a8d24c828887a6f7bde6cc51602daa72eda95ad36a5a1620f5e5b1d9"
+      "bytes": 702,
+      "sha256": "95798ca69db268014c36071e37430e4ca6c8e0059016150b55ff3b3c5e6f789f"
     },
     {
       "path": "scripts/native-menu.swift",
@@ -282,9 +312,19 @@
       "sha256": "3fbb860cc91572b2db8408c5a567c9b478822ff66e0a983b4137b6ae0cb92a6f"
     },
     {
+      "path": "scripts/package-windows.cjs",
+      "bytes": 1147,
+      "sha256": "c9c3b9e416c871fbdf7258f79b4709258f102043f0b5ad5ddd0e19223629a9fd"
+    },
+    {
       "path": "scripts/prepare-menu-cat-face.py",
       "bytes": 1786,
       "sha256": "a032983261bd721ac440fb424447c377ab519e23054d3c09b33ab226bbe44c62"
+    },
+    {
+      "path": "scripts/prepare-windows-icon.cjs",
+      "bytes": 1876,
+      "sha256": "a3b5a4dc05e5e052af8129594bbc8bdbec7f49686235538ebe9bca186a61adc0"
     },
     {
       "path": "scripts/verify-source.cjs",
@@ -362,19 +402,34 @@
       "sha256": "0cad37e4f678a4218fb76a1f56c4ad45cd63402803e15ea8a73806f77ffbf707"
     },
     {
+      "path": "src/main/focus/tray-animation.test.ts",
+      "bytes": 3037,
+      "sha256": "0976650affb1998344e19bce5dbd72c72dd9f6067fd5d7a53c0c1768a570e457"
+    },
+    {
+      "path": "src/main/focus/tray-animation.ts",
+      "bytes": 2284,
+      "sha256": "574a0374b39c4b95ec71cbf0910c4ecf9ce7279fe47c67f0c9cc09d51162033d"
+    },
+    {
       "path": "src/main/focus/tray.ts",
-      "bytes": 5504,
-      "sha256": "09766053b6f650a67eb03963b706830a2e95b0e6b3fc992495884d1b922b81c3"
+      "bytes": 6334,
+      "sha256": "9e1b5137859b82e103970bc74c9375088e0adf7350539cfac59d8d90d7a3e4ad"
+    },
+    {
+      "path": "src/main/focus/windows-tray-animation.ts",
+      "bytes": 2007,
+      "sha256": "f2d209f9a9fa4c274c1994b7d5d85f2e28d1da156b07ab2a340e4bbf46547915"
     },
     {
       "path": "src/main/focus/windows.ts",
-      "bytes": 5449,
-      "sha256": "a5799ac08c791d586b7b64452d57ab6fefabad0978b0abee9acdceaedb7f3fa5"
+      "bytes": 5490,
+      "sha256": "b172df68c6bb7253d5503be0c00f2e7ac4dfcc73e8a5bce258edb07e48eb4754"
     },
     {
       "path": "src/main/index.ts",
-      "bytes": 3508,
-      "sha256": "f2f8567a0bc9ca626b34ab763c766abc41a6c70bcd338487ce12d82c0e13cb0b"
+      "bytes": 4173,
+      "sha256": "3e95abef6ca7deea1121a42de2ba326649a0979b42888515e902fb609cf13363"
     },
     {
       "path": "src/preload/bridge-types.d.ts",
@@ -583,8 +638,8 @@
     },
     {
       "path": "src/renderer/src/focus/views/MiniView.tsx",
-      "bytes": 2707,
-      "sha256": "db8b0178d24e3d27016b60766390f6d6f1fb8e72552cb2350c0d7844794d2d85"
+      "bytes": 2718,
+      "sha256": "c3f8dcbd690f8096c8640b79ed2f0bb6e02ae64d63aee45ad19c8f89a8c72672"
     },
     {
       "path": "src/renderer/src/focus/views/PixelCat.tsx",
@@ -598,8 +653,8 @@
     },
     {
       "path": "src/renderer/src/focus/views/SettingsPanel.tsx",
-      "bytes": 8510,
-      "sha256": "26776f32588f88578116508663bffa1fde6fba391b719402c244daee7364d03c"
+      "bytes": 8516,
+      "sha256": "12ac776ceaa5342788e56529a419d026f66daf55f28d539a17519d9bbdc2493e"
     },
     {
       "path": "src/renderer/src/focus/views/TodayPanel.tsx",

@@ -3,17 +3,22 @@
   "version": "0.1.0-candidate.1",
   "private": true,
   "license": "MIT",
-  "description": "Local macOS pixel-cat Pomodoro app",
+  "description": "Local macOS and Windows pixel-cat Pomodoro app",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "node scripts/build-native-menu.cjs && electron-vite dev",
     "build": "node scripts/build-native-menu.cjs && electron-vite build",
+    "build:win": "node scripts/build-native-menu.cjs win32 && electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "bun test src/shared/focus src/main/focus src/renderer/src/focus",
     "test:e2e": "bun test e2e --timeout 180000",
     "package:mac": "bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --dir --publish never",
+    "package:win": "bun run build:win && node scripts/package-windows.cjs dir",
+    "dist:win": "bun run build:win && node scripts/package-windows.cjs nsis",
     "audit:bundle": "node scripts/audit-bundle.cjs",
+    "audit:win": "node scripts/audit-bundle.cjs --platform=win32",
+    "assets:win-icon": "node scripts/prepare-windows-icon.cjs",
     "verify:source": "node scripts/verify-source.cjs"
   },
   "dependencies": {

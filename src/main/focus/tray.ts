@@ -3,7 +3,9 @@ import type { Snapshot } from '../../shared/focus/types';
 import trayIcon from '../../../resources/tray-icon.png?asset';
 import trayIcon2x from '../../../resources/tray-icon@2x.png?asset';
 import {readFileSync} from 'node:fs';
+import {dirname, join} from 'node:path';
 import {createNativeMenu} from './native-menu';
+import {createWindowsTrayAnimation} from './windows-tray-animation';
 let retainedTray:Tray|null=null;
 export interface TrayItem { label:string;enabled:boolean;click():void|Promise<void> }
 export interface FocusTrayDeps {
@@ -21,6 +23,9 @@ export function createFocusTray(deps:FocusTrayDeps):FocusTray {
   if(image.isEmpty())throw new Error('Focus Buddy tray icon is empty');
   image.setTemplateImage(process.platform==='darwin');
   const tray=process.platform==='darwin'?null:new Tray(image);retainedTray=tray;
+  const animation=process.platform==='win32'&&tray?createWindowsTrayAnimation(tray,join(dirname(trayIcon),'menu-cat')):null;
+  tray?.on('double-click',deps.showMain);
+  app.once('will-quit',()=>{animation?.dispose();tray?.destroy();if(retainedTray===tray)retainedTray=null;});
   console.log('[Focus Buddy tray]',JSON.stringify({build:'dot-cat-r5',pid:process.pid,imageEmpty:image.isEmpty(),imageSize:image.getSize(),scaleFactors:image.getScaleFactors(),template:image.isTemplateImage()}));
   let items:TrayItem[]=[];let signature='';let menu:Menu|null=null;let title='';
   const native=process.platform==='darwin'?createNativeMenu(trayIcon,id=>{
@@ -31,7 +36,9 @@ export function createFocusTray(deps:FocusTrayDeps):FocusTray {
     const phase=(s.phase??s.suggestedNext??'focus')==='focus'?'집중':(s.phase??s.suggestedNext)==='long_break'?'긴 휴식':'휴식';
     const status=s.status==='paused'?'일시정지':s.status==='running'?'진행 중':'대기';
     title=clock;
-    tray?.setTitle(title);tray?.setToolTip(`Focus Buddy · ${phase} ${clock} · ${status}`);
+    // Windows has no status-item title; keep time in the tooltip and first menu row.
+    tray?.setToolTip(`Focus Buddy · ${phase} ${clock} · ${status}`);
+    animation?.update(s.status,s.phase??s.suggestedNext??'focus');
     const label=`${phase} ${clock} · ${status}`;
     const nextSignature=`${s.status}/${s.phase}/${s.suggestedNext}/${deps.widgetEnabled()}/${deps.scale()}`;
     if(signature!==nextSignature) {
@@ -60,7 +67,13 @@ export function createFocusTray(deps:FocusTrayDeps):FocusTray {
     native?.update(title,`Focus Buddy · ${phase} ${clock} · ${status}`,items.map((item,id)=>({id,label:item.label,enabled:item.enabled})),s.status,s.phase??s.suggestedNext??'focus');
   };
   return {update,items:()=>items,title:()=>title,
-    testNativeAction:label=>{const id=items.findIndex(item=>item.label===label&&item.enabled);if(id<0||!native)throw Error(`Native menu item unavailable: ${label}; ${JSON.stringify(items.map(i=>({label:i.label,enabled:i.enabled})))}`);native.testAction(id);},
-    testNativeOpen:()=>{if(!native)throw Error('Native menu unavailable');native.testOpen();},
-    diagnostics:()=>({build:'dot-cat-r5-native',pid:process.pid,title,bounds:tray?.getBounds(),imageSize:image.getSize(),imageEmpty:image.isEmpty(),retained:native?true:retainedTray===tray,destroyed:tray?.isDestroyed()??false,scaleFactors:image.getScaleFactors(),template:image.isTemplateImage(),...(native?.diagnostics()??{backend:'Electron'})})};
+    testNativeAction:label=>{
+      if(process.env.FOCUS_BUDDY_E2E!=='1')throw Error('Native menu test disabled');
+      const id=items.findIndex(item=>item.label===label&&item.enabled);
+      if(id<0)throw Error(`Native menu item unavailable: ${label}`);
+      if(native)native.testAction(id);
+      else {const item=menu?.items[id];if(!item)throw Error('Electron tray menu unavailable');item.click(undefined,undefined);}
+    },
+    testNativeOpen:()=>{if(process.env.FOCUS_BUDDY_E2E!=='1')throw Error('Native menu test disabled');if(native)native.testOpen();else tray?.popUpContextMenu();},
+    diagnostics:()=>({build:'dot-cat-r5-native',pid:process.pid,title,bounds:tray?.getBounds(),imageSize:image.getSize(),imageEmpty:image.isEmpty(),retained:native?true:retainedTray===tray,destroyed:tray?.isDestroyed()??false,scaleFactors:image.getScaleFactors(),template:image.isTemplateImage(),...(native?.diagnostics()??{backend:'Electron',ready:tray!==null&&!tray.isDestroyed(),animation:animation?.diagnostics()})})};
 }

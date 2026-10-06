@@ -1,10 +1,13 @@
 // Original isolated-profile integration tests, written on 2026-10-06.
-// AppKit actions and clock/suspend hooks are fixtures; no physical OS sleep or click is claimed.
+// AppKit dispatch/Electron MenuItem callbacks and clock/suspend hooks are fixtures.
+// They do not claim physical notification-area/menu-bar clicks or OS sleep.
 import { afterEach, expect, test } from 'bun:test';
+import { rm } from 'node:fs/promises';
 import type { Page } from 'playwright';
 import { launchCandidate, waitFor, type CandidateApp } from './helpers';
 
-const macTest = process.platform === 'darwin' ? test : test.skip;
+const desktopTest = ['darwin', 'win32'].includes(process.platform) ? test : test.skip;
+const windowsTest = process.platform === 'win32' ? test : test.skip;
 const active = new Set<CandidateApp>();
 async function launch(userDataDir?: string): Promise<CandidateApp> {
   const app = await launchCandidate({ userDataDir });
@@ -12,8 +15,13 @@ async function launch(userDataDir?: string): Promise<CandidateApp> {
   return app;
 }
 afterEach(async () => {
-  for (const app of active) await app.close();
-  active.clear();
+  const profiles = new Set([...active].map((app) => app.userDataDir));
+  try {
+    for (const app of active) await app.close();
+  } finally {
+    active.clear();
+    for (const profile of profiles) await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
 });
 
 async function smallDurations(app: CandidateApp): Promise<void> {
@@ -28,7 +36,7 @@ async function shared(app: CandidateApp, mini: Page): Promise<void> {
   expect(Math.abs(miniState.remainingMs - mainState.remainingMs)).toBeLessThan(1500);
 }
 
-macTest('fresh candidate is menu-bar-first; native timer is ready and its settings action shows the hidden main window', async () => {
+desktopTest('fresh candidate starts with hidden windows and a ready platform tray; actual menu callback opens settings', async () => {
   const app = await launch();
   const state = await app.snapshot();
   expect(state.status).toBe('idle');
@@ -37,21 +45,39 @@ macTest('fresh candidate is menu-bar-first; native timer is ready and its settin
   expect((await app.windows()).every((window) => !window.visible)).toBe(true);
   const menu = await app.main.evaluate(() => window.focusBuddyTest!.trayMenu());
   expect(menu.some((item) => item.label === '위젯 켜기' && item.enabled)).toBe(true);
-  const runtime = await waitFor(
-    () => app.main.evaluate(() => window.electron!.ipcRenderer.invoke('focus:runtime-info')),
-    (value) => value.tray.backend === 'AppKit' && value.tray.ready === true && value.tray.bounds?.width > 0,
-  );
+  const runtime = await app.runtime();
   expect(runtime.userData).toBe(app.userDataDir);
+  expect(runtime.tray.backend).toBe(process.platform === 'darwin' ? 'AppKit' : 'Electron');
+  expect(runtime.tray.ready).toBe(true);
+  expect(runtime.tray.retained).toBe(true);
+  expect(runtime.tray.destroyed).toBe(false);
+  expect(runtime.tray.imageEmpty).toBe(false);
   expect(runtime.tray.title).toBe('25:00');
-  expect(runtime.tray.visible).toBe(true);
-  expect(Math.abs(runtime.tray.bounds.width - 74)).toBeLessThanOrEqual(2);
-  expect(runtime.tray.imageSize).toEqual({ width: 18, height: 18 });
+  if (process.platform === 'darwin') {
+    expect(runtime.tray.visible).toBe(true);
+    expect(Math.abs(runtime.tray.bounds!.width - 74)).toBeLessThanOrEqual(2);
+    expect(runtime.tray.imageSize).toEqual({ width: 18, height: 18 });
+  } else {
+    expect(runtime.tray.template).toBe(false);
+    expect(runtime.tray.imageSize.width).toBeGreaterThan(0);
+    expect(runtime.tray.imageSize.height).toBeGreaterThan(0);
+  }
+  await expect(app.nativeAction('일시정지')).rejects.toThrow();
   await app.nativeAction('설정 및 작업명');
   await waitFor(() => app.windows(), (windows) => windows.some((window) => window.name === 'main' && window.visible));
   expect(await app.main.getByRole('heading', { name: '집중 리듬' }).isVisible()).toBe(true);
+  await app.app.evaluate(({ BrowserWindow }) => {
+    const main = BrowserWindow.getAllWindows().find((window) => !window.webContents.getURL().includes('#/mini'));
+    if (!main) throw new Error('Main window missing');
+    main.close();
+  });
+  await waitFor(() => app.windows(), (windows) => windows.every((window) => !window.visible));
+  expect(app.app.process().exitCode).toBeNull();
+  await app.nativeAction('오늘 기록');
+  await app.main.getByRole('heading', { name: '오늘의 집중', exact: true }).waitFor();
 }, 60000);
 
-macTest('main and widget share timer controls, completion, manual next, four-focus long break and skip', async () => {
+desktopTest('main and widget share timer controls, completion, manual next, four-focus long break and skip', async () => {
   const app = await launch();
   await smallDurations(app);
   await app.trayAction('위젯 켜기');
@@ -94,7 +120,7 @@ macTest('main and widget share timer controls, completion, manual next, four-foc
   expect(state.phase).toBe('long_break');
   expect(state.plannedSeconds).toBe(120);
   await app.trayAction('휴식 건너뛰기');
-  state = await app.snapshot();
+  state = await waitFor(() => app.snapshot(), (snapshot) => snapshot.status === 'awaiting_next' && snapshot.suggestedNext === 'focus');
   expect(state.status).toBe('awaiting_next');
   expect(state.suggestedNext).toBe('focus');
   expect(state.today.completedFocusCount).toBe(4);
@@ -102,7 +128,7 @@ macTest('main and widget share timer controls, completion, manual next, four-foc
   await shared(app, mini);
 }, 120000);
 
-macTest('widget on/off and 100-to-125 percent scale persist across a relaunch without duplicate completion records', async () => {
+desktopTest('widget on/off and 100-to-125 percent scale persist across a relaunch without duplicate completion records', async () => {
   let app = await launch();
   await smallDurations(app);
   await app.trayAction('위젯 켜기');
@@ -115,8 +141,10 @@ macTest('widget on/off and 100-to-125 percent scale persist across a relaunch wi
   const completed = await app.persisted();
   expect(completed.completions.length).toBe(1);
   await app.trayAction('위젯 끄기');
+  await waitFor(() => app.windows(), (windows) => windows.find((window) => window.name === 'mini')?.visible === false);
   expect((await app.windows()).find((window) => window.name === 'mini')?.visible).toBe(false);
   await app.trayAction('위젯 켜기');
+  await waitFor(() => app.windows(), (windows) => windows.some((window) => window.name === 'mini' && window.visible));
   const profile = app.userDataDir;
   await app.close();
   app = await launch(profile);
@@ -130,7 +158,7 @@ macTest('widget on/off and 100-to-125 percent scale persist across a relaunch wi
   expect((await app.snapshot()).today.completedFocusCount).toBe(1);
 }, 90000);
 
-macTest('UI saves a task and custom settings; history survives normal quit and active work recovers paused in the same isolated profile', async () => {
+desktopTest('UI saves a task and custom settings; history survives normal quit and active work recovers paused in the same isolated profile', async () => {
   let app = await launch();
   await app.trayAction('설정 및 작업명');
   const main = app.main;
@@ -138,12 +166,19 @@ macTest('UI saves a task and custom settings; history survives normal quit and a
   await main.getByRole('spinbutton', { name: '집중 시간(분)' }).fill('1');
   await main.getByRole('spinbutton', { name: '짧은 휴식(분)' }).fill('2');
   await main.getByRole('spinbutton', { name: '긴 휴식(분)' }).fill('3');
-  await main.getByRole('textbox', { name: '작업명' }).fill('candidate local task');
+  await main.getByRole('switch', { name: '작은 창 항상 위에 표시' }).uncheck();
+  await main.getByRole('switch', { name: 'OS 알림', exact: true }).uncheck();
+  await main.getByRole('switch', { name: '고양이 코골이 소리', exact: true }).check();
+  const task = main.getByRole('textbox', { name: '작업명' });
+  await task.fill('candidate local task');
+  await task.blur();
+  await waitFor(() => task.inputValue(), (value) => value === 'candidate local task');
   await main.getByRole('button', { name: '설정 저장', exact: true }).click();
   await waitFor(() => app.snapshot(), (state) => state.settings.preset === 'custom' && state.settings.durations.longBreakMin === 3);
   await main.getByText('저장했어요. 다음 집중부터 함께해요.', { exact: true }).waitFor();
+  await waitFor(() => main.evaluate(() => localStorage.getItem('focus-buddy.pixel.next-task')), (value) => value === 'candidate local task');
   await app.trayAction('시작');
-  let state = await app.snapshot();
+  let state = await waitFor(() => app.snapshot(), (snapshot) => snapshot.status === 'running');
   expect(state.taskName).toBe('candidate local task');
   await app.advance(61000);
   await app.dispatch({ type: 'skipBreak' });
@@ -160,14 +195,21 @@ macTest('UI saves a task and custom settings; history survives normal quit and a
   expect(state.recovery?.kind).toBe('quit');
   expect(Math.abs(state.remainingMs - before.remainingMs)).toBeLessThan(2000);
   expect(state.settings.durations).toEqual({ focusMin: 1, shortBreakMin: 2, longBreakMin: 3 });
+  expect(state.settings.alwaysOnTop).toBe(false);
+  expect(state.settings.osNotificationEnabled).toBe(false);
+  expect(await app.main.evaluate(() => window.electron!.ipcRenderer.invoke('focus:snore-settings'))).toBe(true);
   expect(state.today.completedFocusCount).toBe(1);
   await app.trayAction('오늘 기록');
   await app.main.getByRole('heading', { name: '오늘의 집중', exact: true }).waitFor();
   expect(await app.main.getByText('candidate local task', { exact: true }).count()).toBeGreaterThan(0);
   expect(new Set((await app.persisted()).sessions.map((session) => session.id)).size).toBe(state.today.sessions.length);
+  await app.trayAction('위젯 켜기');
+  await app.mini();
+  await waitFor(() => app.windows(), (windows) => windows.some((window) => window.name === 'mini' && window.visible));
+  expect((await app.windows()).find((window) => window.name === 'mini')?.alwaysOnTop).toBe(false);
 }, 90000);
 
-macTest('hidden windows keep elapsed time; simulated suspend pauses and wake cannot resume without an explicit user command', async () => {
+desktopTest('hidden windows keep elapsed time; simulated suspend pauses and wake cannot resume without an explicit user command', async () => {
   const app = await launch();
   await smallDurations(app);
   await app.dispatch({ type: 'startFocus', taskName: 'hidden clock' });
@@ -190,3 +232,121 @@ macTest('hidden windows keep elapsed time; simulated suspend pauses and wake can
   expect(sleeping.remainingMs - resumed.remainingMs).toBeGreaterThanOrEqual(2000);
   expect(resumed.today.completedFocusCount).toBe(0);
 }, 60000);
+
+desktopTest('actual menu callbacks start, pause, resume and reset; widget cat animates, freezes and changes to rest', async () => {
+  const app = await launch();
+  await smallDurations(app);
+  await app.trayAction('위젯 켜기');
+  const mini = await app.mini();
+  await mini.emulateMedia({ reducedMotion: 'no-preference' });
+  const cat = mini.locator('.pixel-cat');
+  await waitFor(() => cat.getAttribute('data-animation-ready'), (ready) => ready === 'true');
+  expect(await waitFor(() => cat.evaluate((element) => (element as HTMLImageElement).naturalWidth), (width) => width > 0)).toBeGreaterThan(0);
+
+  await app.nativeAction('시작');
+  const started = await waitFor(() => app.snapshot(), (state) => state.status === 'running');
+  expect(started.phase).toBe('focus');
+  await waitFor(() => cat.getAttribute('data-animation'), (state) => state === 'sleep');
+  const movingFrame = await cat.getAttribute('src');
+  await waitFor(() => cat.getAttribute('src'), (frame) => frame !== movingFrame);
+
+  await app.nativeAction('일시정지');
+  await waitFor(() => app.snapshot(), (state) => state.status === 'paused');
+  await waitFor(() => cat.getAttribute('data-paused'), (paused) => paused === 'true');
+  const pausedFrame = await cat.getAttribute('src');
+  // Observe longer than one 500ms focus animation frame, using the real renderer clock.
+  await new Promise((done) => setTimeout(done, 650));
+  expect(await cat.getAttribute('src')).toBe(pausedFrame);
+  await app.nativeAction('재개');
+  await waitFor(() => app.snapshot(), (state) => state.status === 'running');
+  await waitFor(() => cat.getAttribute('src'), (frame) => frame !== pausedFrame);
+  await app.nativeAction('현재 타이머 초기화');
+  const reset = await waitFor(() => app.snapshot(), (state) => state.status === 'awaiting_next');
+  expect(reset.suggestedNext).toBe('focus');
+  expect(reset.today.sessions.find((session) => session.id === started.sessionId)?.status).toBe('interrupted');
+  expect(reset.settings.durations).toEqual(started.settings.durations);
+
+  await app.nativeAction('시작');
+  await waitFor(() => app.snapshot(), (state) => state.status === 'running');
+  await app.advance(61000);
+  expect((await app.snapshot()).today.completedFocusCount).toBe(1);
+  await waitFor(() => cat.getAttribute('data-animation'), (state) => state === 'rest');
+  await app.nativeAction('시작');
+  await waitFor(() => app.snapshot(), (state) => state.status === 'running' && state.phase === 'short_break');
+  await waitFor(() => cat.getAttribute('data-animation'), (state) => state === 'rest');
+
+  // Reduced motion is an OS/media preference, independent of the timer's test clock.
+  await mini.emulateMedia({ reducedMotion: 'reduce' });
+  const reducedFrame = await cat.getAttribute('src');
+  await new Promise((done) => setTimeout(done, 650));
+  expect(await cat.getAttribute('src')).toBe(reducedFrame);
+  await mini.emulateMedia({ reducedMotion: 'no-preference' });
+  await waitFor(() => cat.getAttribute('src'), (frame) => frame !== reducedFrame);
+  await app.nativeAction('현재 단계 종료');
+  const finished = await waitFor(() => app.snapshot(), (state) => state.status === 'awaiting_next');
+  expect(finished.suggestedNext).toBe('focus');
+  expect(finished.today.completedFocusCount).toBe(1);
+}, 90000);
+
+desktopTest('widget resize control obeys bounds and preserves scale plus hidden preference after restart', async () => {
+  let app = await launch();
+  await app.trayAction('위젯 켜기');
+  const mini = await app.mini();
+  const resize = mini.getByRole('button', { name: '모서리를 끌어 위젯 크기 조절' });
+  const scale = (): Promise<number> => app.main.evaluate(() => window.electron!.ipcRenderer.invoke('focus:widget-scale'));
+  const waitScale = async (expected: number): Promise<void> => {
+    await waitFor(scale, (value) => Math.abs(value - expected) < 0.001);
+    await waitFor(() => mini.locator('.pixel-viewport').evaluate((element) => element.getBoundingClientRect().width), (width) => Math.abs(width - expected * 280) < 1);
+  };
+  await resize.press('ArrowRight', { delay: 50 });
+  await waitScale(1.05);
+  const bounds = await app.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((window) => window.webContents.getURL().includes('#/mini'))!.getBounds());
+  expect(bounds.width).toBe(294);
+  expect(bounds.height).toBe(326);
+
+  await app.trayAction('위젯 크기 80%');
+  await waitScale(0.8);
+  await resize.press('ArrowLeft', { delay: 50 });
+  expect(await scale()).toBe(0.8);
+  await app.trayAction('위젯 크기 150%');
+  await waitScale(1.5);
+  await resize.press('ArrowRight', { delay: 50 });
+  expect(await scale()).toBe(1.5);
+  await app.trayAction('위젯 크기 125%');
+  await waitScale(1.25);
+  await resize.press('ArrowRight', { delay: 50 });
+  await waitScale(1.3);
+  await app.trayAction('위젯 끄기');
+  await waitFor(() => app.windows(), (windows) => windows.every((window) => !window.visible));
+  const profile = app.userDataDir;
+  await app.close();
+  app = await launch(profile);
+  expect((await app.windows()).every((window) => !window.visible)).toBe(true);
+  expect(await scale()).toBe(1.3);
+  await app.trayAction('위젯 켜기');
+  const restored = await app.mini();
+  await waitFor(() => restored.locator('.pixel-viewport').evaluate((element) => element.getBoundingClientRect().width), (width) => Math.abs(width - 364) < 1);
+}, 90000);
+
+windowsTest('Windows Electron tray animates focus/rest icons and holds the exact icon while paused', async () => {
+  const app = await launch();
+  await smallDurations(app);
+  await app.nativeAction('시작');
+  await waitFor(() => app.snapshot(), (state) => state.status === 'running');
+  const focus = await waitFor(() => app.runtime(), (runtime) => runtime.tray.animation?.mode === 'sleep' && runtime.tray.animation.running);
+  expect(focus.tray.backend).toBe('Electron');
+  expect(focus.tray.animation!.frames).toBeGreaterThan(1);
+  await waitFor(() => app.runtime(), (runtime) => runtime.tray.animation!.changes > focus.tray.animation!.changes, 8000);
+  await app.nativeAction('일시정지');
+  const paused = await waitFor(() => app.runtime(), (runtime) => runtime.tray.animation?.running === false);
+  await new Promise((done) => setTimeout(done, 650));
+  const held = await app.runtime();
+  expect(held.tray.animation!.frame).toBe(paused.tray.animation!.frame);
+  expect(held.tray.animation!.changes).toBe(paused.tray.animation!.changes);
+  await app.nativeAction('재개');
+  await waitFor(() => app.snapshot(), (state) => state.status === 'running');
+  await app.advance(61000);
+  await app.nativeAction('시작');
+  await waitFor(() => app.snapshot(), (state) => state.status === 'running' && state.phase === 'short_break');
+  await waitFor(() => app.runtime(), (runtime) => runtime.tray.animation?.mode === 'rest' && runtime.tray.animation.running);
+}, 90000);

@@ -6,6 +6,8 @@ import { handleAppProtocol, registerAppScheme } from './focus/app-protocol';
 import { registerFocusMain, type FocusMain } from './focus';
 
 app.setName('Focus Buddy Candidate');
+// Matches electron-builder's appId and the NSIS Start Menu shortcut.
+if (process.platform === 'win32') app.setAppUserModelId('local.focusbuddy.candidate');
 const candidateData = process.env.FOCUS_BUDDY_USER_DATA_DIR;
 app.setPath(
   'userData',
@@ -65,6 +67,16 @@ if (!ownsInstance) {
       },
     });
     mainWindow = window;
+    if (process.platform === 'win32') {
+      // Windows does not emit app.before-quit on logoff/shutdown. Pause and
+      // checkpoint without blocking the OS. Keep the service resumable if
+      // another app cancels logoff; forced termination uses normal checkpoints.
+      window.on('query-session-end', () => {
+        void focus?.ready.then(() => focus?.service.onSuspend()).catch((error: unknown) => {
+          console.error('Candidate session-end save failed', error);
+        });
+      });
+    }
     focus.attachMainWindow(window);
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.on('close', (event) => {
