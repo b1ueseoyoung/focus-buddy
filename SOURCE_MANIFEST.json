@@ -723,13 +723,13 @@
     },
     {
       "path": "src/shared/focus/timer-core.test.ts",
-      "bytes": 19364,
-      "sha256": "d7989ae8dafb7d10e7eaaa28f12e891f7575a0acf0348d6cad503a2bc309f28f"
+      "bytes": 28415,
+      "sha256": "7d636e9243648c53189d8e0c257bf54b98f228032ba6696e6a0b03c6a6291d84"
     },
     {
       "path": "src/shared/focus/timer-core.ts",
-      "bytes": 11812,
-      "sha256": "af487ac40bb5f8650cbfe00589c5a71eca54d5abd973811aa0bef1c94a71c76a"
+      "bytes": 13191,
+      "sha256": "df180a8a14ceb1468508f373930480973ab9ed28da25b7f3f1f8234e3051099d"
     },
     {
       "path": "src/shared/focus/today.test.ts",

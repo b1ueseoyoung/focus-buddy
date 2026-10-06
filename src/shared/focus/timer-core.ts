@@ -34,6 +34,8 @@ const ignore = (reason: string): CoreResult => ({
 });
 const clone = (p: PersistedState): PersistedState =>
   JSON.parse(JSON.stringify(p));
+// Allow millisecond wall-clock rounding and brief skew between the sequential reads.
+const WALL_CLOCK_TOLERANCE_MS = 10;
 
 export class TimerCore {
   private readonly clock: Clock;
@@ -104,9 +106,10 @@ export class TimerCore {
 
   pause(reason: PauseReason = "user"): CoreResult {
     if (this.status() !== "running") return ignore("not running");
-    this.pauseAt(this.accrualMono(this.clock.mono()), reason);
+    const sample = this.sampleRun(this.clock.mono());
+    this.pauseAt(sample.upTo, reason);
     if (reason === "sleep")
-      this.s.recovery = { kind: "sleep", at: this.clock.wall() };
+      this.s.recovery = { kind: "sleep", at: sample.wall };
     return done({ kind: "paused", reason });
   }
 
@@ -195,8 +198,7 @@ export class TimerCore {
     const session = this.session();
     if (!session || this.status() !== "running")
       return { changed: false, ignored: null, events: [] };
-    const mono = this.clock.mono();
-    const upTo = this.accrualMono(mono);
+    const { mono, wall, upTo, rebased } = this.sampleRun(this.clock.mono());
     const stalled = upTo !== mono;
     if (
       session.elapsedMs + (upTo - this.runStartMono) >=
@@ -206,11 +208,11 @@ export class TimerCore {
     }
     if (stalled) {
       this.pauseAt(upTo, "stall");
-      this.s.recovery = { kind: "stall", at: this.clock.wall() };
+      this.s.recovery = { kind: "stall", at: wall };
       return done({ kind: "paused", reason: "stall" });
     }
     this.lastTickMono = mono;
-    return { changed: false, ignored: null, events: [] };
+    return { changed: rebased, ignored: null, events: [] };
   }
 
   msUntilCompletion(): number | null {
@@ -224,9 +226,10 @@ export class TimerCore {
   }
 
   toPersisted(): PersistedState {
+    const { upTo, wall } = this.sampleRun(this.clock.mono());
     const copy = clone(this.s);
-    this.applyRun(copy, this.accrualMono(this.clock.mono()));
-    copy.savedAt = this.clock.wall();
+    this.applyRun(copy, upTo);
+    copy.savedAt = wall;
     return copy;
   }
 
@@ -302,6 +305,10 @@ export class TimerCore {
     this.runStartMono = mono;
     this.lastTickMono = this.runStartMono;
     this.runStartWall = this.clock.wall();
+    this.openFocusSegment(session);
+  }
+
+  private openFocusSegment(session: Session): void {
     if (session.phase !== "focus" || !this.s.active) return;
     const id = this.newId();
     this.s.segments.push({
@@ -318,6 +325,39 @@ export class TimerCore {
   // 공개 메서드가 시작할 때 한 번 읽은 mono를 받는다. 실제 시계는 읽을 때마다 값이 흐른다.
   private accrualMono(mono: number): number {
     return mono - this.lastTickMono > STALL_MS ? this.lastTickMono : mono;
+  }
+
+  private sampleRun(mono: number): {
+    mono: number;
+    wall: number;
+    upTo: number;
+    rebased: boolean;
+  } {
+    const wall = this.clock.wall();
+    const upTo = this.accrualMono(mono);
+    const session = this.session();
+    const expectedWall = this.runStartWall + mono - this.runStartMono;
+    if (
+      !session ||
+      this.status() !== "running" ||
+      upTo !== mono ||
+      Math.abs(wall - expectedWall) <= WALL_CLOCK_TOLERANCE_MS
+    ) {
+      return { mono, wall, upTo, rebased: false };
+    }
+
+    // Keep confirmed focus under its old wall mapping. The newest observed offset
+    // applies after the last tick; reads must not move that tick or bypass the stall cap.
+    const left = Math.max(0, session.plannedSeconds * 1000 - session.elapsedMs);
+    const boundary = Math.max(
+      this.runStartMono,
+      Math.min(this.lastTickMono, mono, this.runStartMono + left),
+    );
+    this.applyRun(this.s, boundary);
+    this.runStartMono = boundary;
+    this.runStartWall = wall - (mono - boundary);
+    this.openFocusSegment(session);
+    return { mono, wall, upTo, rebased: true };
   }
 
   private runMs(session: Session, upToMono: number): number {
@@ -354,9 +394,10 @@ export class TimerCore {
   private closeActive(mono: number): void {
     const session = this.session();
     if (!session) return;
-    this.applyRun(this.s, this.accrualMono(mono));
+    const { upTo, wall } = this.sampleRun(mono);
+    this.applyRun(this.s, upTo);
     session.status = session.phase === "focus" ? "interrupted" : "skipped";
-    session.endedAt = this.clock.wall();
+    session.endedAt = wall;
     this.s.active = null;
   }
 

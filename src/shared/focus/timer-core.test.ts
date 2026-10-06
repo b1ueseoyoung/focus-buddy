@@ -5,7 +5,8 @@ import { PRESETS } from "./constants";
 import { createEmptyState, DEFAULT_SETTINGS } from "./state";
 import { TimerCore } from "./timer-core";
 import type { CoreEvent } from "./timer-core";
-import type { PersistedState } from "./types";
+import { buildTodaySummary } from "./today";
+import type { PersistedState, SessionStatus } from "./types";
 
 const START = Date.UTC(2026, 8, 30, 0, 0, 0);
 const FOCUS_MS = 1500000;
@@ -599,5 +600,233 @@ describe("reset current stage preserves user history", () => {
       phase: "short_break",
       remainingMs: 300000,
     });
+  });
+});
+
+describe("wall-clock corrections preserve monotonic focus records", () => {
+  const MIDNIGHT_START = Date.UTC(2026, 9, 6, 23, 34);
+  const MINUTE = 60000;
+  const make = (wall = MIDNIGHT_START) => {
+    const clock = new FakeClock({ wall, tz: "UTC" });
+    let id = 0;
+    const core = TimerCore.restore(clock, createEmptyState(clock.wall()), {
+      newId: () => `clock-${++id}`,
+    });
+    const run = (ms: number): CoreEvent[] => {
+      const events: CoreEvent[] = [];
+      for (let left = ms; left > 0; left -= 1000) {
+        clock.advance(Math.min(left, 1000));
+        events.push(...core.tick().events);
+      }
+      return events;
+    };
+    core.startFocus("clock correction");
+    return { clock, core, run };
+  };
+  const checkFocus = (state: PersistedState, elapsedMs: number): void => {
+    expect(state.sessions[0].elapsedMs).toBe(elapsedMs);
+    expect(focusSum(state)).toBe(elapsedMs);
+    for (const segment of state.segments) {
+      expect(segment.elapsedMs).toBeGreaterThanOrEqual(0);
+      expect(segment.endAt - segment.startAt).toBe(segment.elapsedMs);
+    }
+    expect(JSON.parse(JSON.stringify(state))).toEqual(state);
+  };
+
+  test("a snapshot observes a two-minute correction before the next tick", () => {
+    const { clock, core, run } = make();
+    run(23 * MINUTE);
+    clock.jumpWall(2 * MINUTE);
+    clock.advance(1000);
+
+    const first = core.toPersisted();
+    checkFocus(first, 23 * MINUTE + 1000);
+    expect(first.segments.map(({ startAt, endAt }) => [startAt, endAt])).toEqual([
+      [MIDNIGHT_START, Date.UTC(2026, 9, 6, 23, 57)],
+      [Date.UTC(2026, 9, 6, 23, 59), Date.UTC(2026, 9, 6, 23, 59, 1)],
+    ]);
+    expect(core.view().remainingMs).toBe(119000);
+    expect(core.msUntilCompletion()).toBe(119000);
+
+    expect(completedOf(run(119000))).toHaveLength(1);
+    const saved = core.toPersisted();
+    checkFocus(saved, FOCUS_MS);
+    const completedAt = Date.UTC(2026, 9, 7, 0, 1);
+    expect(saved.sessions[0].completedAt).toBe(completedAt);
+    expect(saved.completions[0].completedAt).toBe(completedAt);
+    expect(saved.sessions[0].endedAt).toBe(completedAt);
+    expect(buildTodaySummary(saved, clock.wall(), "UTC")).toMatchObject({
+      focusSeconds: 60,
+      completedFocusCount: 1,
+    });
+  });
+
+  test("an exact one-second correction moves a completion across midnight without adding focus", () => {
+    const { clock, core, run } = make(Date.UTC(2026, 9, 6, 23, 34, 59));
+    run(FOCUS_MS - 1000);
+    clock.jumpWall(1000);
+    expect(completedOf(run(1000))).toHaveLength(1);
+
+    const saved = core.toPersisted();
+    const completedAt = Date.UTC(2026, 9, 7);
+    checkFocus(saved, FOCUS_MS);
+    expect(saved.sessions[0].completedAt).toBe(completedAt);
+    expect(saved.sessions[0].endedAt).toBe(completedAt);
+    expect(saved.completions[0].completedAt).toBe(completedAt);
+    expect(saved.segments.at(-1)).toMatchObject({
+      startAt: completedAt - 1000,
+      endAt: completedAt,
+      elapsedMs: 1000,
+    });
+    expect(buildTodaySummary(saved, clock.wall(), "UTC")).toMatchObject({
+      focusSeconds: 0,
+      completedFocusCount: 1,
+    });
+    expect(core.tick().events).toEqual([]);
+    expect(saved.cycle.completedFocusCount).toBe(1);
+  });
+
+  test("read order and repeated snapshots do not alter elapsed time or create segments", () => {
+    const snapshots: PersistedState[] = [];
+    for (const viewFirst of [false, true]) {
+      const { clock, core, run } = make();
+      run(10000);
+      clock.jumpWall(2 * MINUTE);
+      clock.advance(500);
+      if (viewFirst) expect(core.view().remainingMs).toBe(FOCUS_MS - 10500);
+      const first = core.toPersisted();
+      checkFocus(first, 10500);
+      for (let read = 0; read < 3; read += 1) {
+        expect(core.view().remainingMs).toBe(FOCUS_MS - 10500);
+        expect(core.msUntilCompletion()).toBe(FOCUS_MS - 10500);
+        expect(core.toPersisted()).toEqual(first);
+      }
+      snapshots.push(first);
+    }
+    expect(snapshots[0]).toEqual(snapshots[1]);
+  });
+
+  test("successive corrections before a tick do not commit provisional focus", () => {
+    const { clock, core, run } = make();
+    run(10000);
+    const original = core.toPersisted().segments[0];
+    for (const correction of [2 * MINUTE, -4 * MINUTE, 3 * MINUTE]) {
+      clock.advance(200);
+      clock.jumpWall(correction);
+      core.view();
+      const snapshot = core.toPersisted();
+      checkFocus(snapshot, clock.mono());
+      expect(snapshot.segments[0]).toEqual(original);
+    }
+    clock.advance(40000);
+    const stalled = core.toPersisted();
+    checkFocus(stalled, 10000);
+    expect(stalled.segments[0]).toEqual(original);
+    expect(core.tick().events).toEqual([{ kind: "paused", reason: "stall" }]);
+    checkFocus(core.toPersisted(), 10000);
+  });
+
+  test("wall corrections during a stall do not move old focus or refresh the tick", () => {
+    const { clock, core, run } = make();
+    run(10000);
+    const original = core.toPersisted().segments;
+    clock.advance(40000);
+    clock.jumpWall(2 * MINUTE);
+    for (let read = 0; read < 3; read += 1) {
+      expect(core.view().remainingMs).toBe(FOCUS_MS - 10000);
+      const snapshot = core.toPersisted();
+      checkFocus(snapshot, 10000);
+      expect(snapshot.segments).toEqual(original);
+    }
+    expect(core.tick().events).toEqual([{ kind: "paused", reason: "stall" }]);
+    expect(core.toPersisted().segments).toEqual(original);
+    core.resume();
+    const resumedAt = clock.wall();
+    run(1000);
+    const resumed = core.toPersisted();
+    checkFocus(resumed, 11000);
+    expect(resumed.segments.at(-1)?.startAt).toBe(resumedAt);
+  });
+
+  test("late completion uses the corrected offset and caps focus exactly once", () => {
+    const { clock, core, run } = make();
+    run(FOCUS_MS - 1000);
+    clock.advance(4000);
+    clock.jumpWall(2 * MINUTE);
+    const first = core.toPersisted();
+    checkFocus(first, FOCUS_MS);
+    expect(core.toPersisted()).toEqual(first);
+    expect(core.view().remainingMs).toBe(0);
+    const events = [...core.tick().events, ...core.tick().events];
+    expect(completedOf(events)).toHaveLength(1);
+    const saved = core.toPersisted();
+    checkFocus(saved, FOCUS_MS);
+    expect(saved.sessions[0].completedAt).toBe(clock.wall() - 3000);
+    expect(saved.completions).toHaveLength(1);
+    expect(saved.cycle.completedFocusCount).toBe(1);
+  });
+
+  const closingActions: Array<[string, (core: TimerCore) => void, SessionStatus]> = [
+    ["pause", (core) => void core.pause(), "paused"],
+    ["quit", (core) => void core.pause("quit"), "paused"],
+    ["sleep", (core) => void core.pause("sleep"), "paused"],
+    ["finish", (core) => void core.finishCurrent(), "interrupted"],
+    ["reset", (core) => void core.resetCurrent(), "interrupted"],
+    ["end work", (core) => void core.endWork(), "interrupted"],
+  ];
+  test.each(closingActions)("%s observes a backwards correction before any snapshot", (_name, close, status) => {
+    const { clock, core, run } = make();
+    run(10000);
+    clock.jumpWall(-2 * MINUTE);
+    clock.advance(500);
+    close(core);
+    const saved = core.toPersisted();
+    checkFocus(saved, 10500);
+    expect(saved.sessions[0].status).toBe(status);
+    expect(saved.segments.at(-1)?.endAt).toBe(clock.wall());
+    if (status === "interrupted") expect(saved.sessions[0].endedAt).toBe(clock.wall());
+    expect(saved.completions).toHaveLength(0);
+    expect(saved.cycle.completedFocusCount).toBe(0);
+  });
+
+  test("a corrected break completes with no additional focus segments", () => {
+    const { clock, core, run } = make();
+    run(FOCUS_MS);
+    const focus = core.toPersisted();
+    core.startNext("");
+    run(MINUTE);
+    clock.jumpWall(2 * MINUTE);
+    expect(completedOf(run(4 * MINUTE))).toHaveLength(1);
+    const saved = core.toPersisted();
+    expect(saved.segments).toEqual(focus.segments);
+    expect(saved.sessions[1]).toMatchObject({
+      status: "completed",
+      elapsedMs: 5 * MINUTE,
+      completedAt: clock.wall(),
+    });
+    expect(saved.cycle.completedFocusCount).toBe(1);
+  });
+
+  test("restoring and resuming a corrected snapshot keeps its focus and completion unique", () => {
+    const { clock, core, run } = make();
+    run(10000);
+    clock.jumpWall(2 * MINUTE);
+    clock.advance(500);
+    const saved = core.toPersisted();
+    const restored = TimerCore.restore(clock, saved);
+    expect(restored.view().remainingMs).toBe(FOCUS_MS - 10500);
+    checkFocus(restored.toPersisted(), 10500);
+    expect(restored.toPersisted().segments).toEqual(saved.segments);
+    restored.resume();
+    const events: CoreEvent[] = [];
+    for (let left = FOCUS_MS - 10500; left > 0; left -= 1000) {
+      clock.advance(Math.min(left, 1000));
+      events.push(...restored.tick().events);
+    }
+    const completed = restored.toPersisted();
+    checkFocus(completed, FOCUS_MS);
+    expect(completedOf(events)).toHaveLength(1);
+    expect(completed.completions).toHaveLength(1);
+    expect(restored.tick().events).toEqual([]);
   });
 });
