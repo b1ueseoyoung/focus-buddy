@@ -1,5 +1,7 @@
 # Verification — 2026-10-06
 
+This is the initial source-publication snapshot. Later Windows and bug-fix results are recorded in [WINDOWS.md](WINDOWS.md) and [FIX_VERIFICATION.md](FIX_VERIFICATION.md); the counts and limitations below describe the original publication check.
+
 Standalone source publication `0.1.0-candidate.1`, macOS arm64, Electron **44.5.1**. The original installed Focus Buddy and the terminal Mod were not replaced or edited. New dependency installation is local to the candidate and preserves the original linked `node_modules`.
 
 | Check | Actual result | Scope |
