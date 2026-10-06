@@ -43,18 +43,20 @@ jobs:
         run: bun run test
       - name: Build Windows sources
         run: bun run build:win
-      - name: Development Electron integration
-        run: bun run test:e2e
       - name: Package Windows x64 application
         run: node scripts/package-windows.cjs dir
       - name: Audit Windows payload
         run: bun run audit:win
-      - name: Packaged Electron integration
-        env:
-          FOCUS_BUDDY_CANDIDATE_ELECTRON: ${{ github.workspace }}\release\win-unpacked\Focus Buddy Candidate.exe
-        run: bun run test:e2e
       - name: Build unsigned per-user NSIS installer
         run: node scripts/package-windows.cjs nsis
       - name: Audit final installer payload
         run: bun run audit:win
+      - name: Development Electron integration
+        timeout-minutes: 4
+        run: bun test e2e --timeout 45000 --bail=1
+      - name: Packaged Electron integration
+        timeout-minutes: 4
+        env:
+          FOCUS_BUDDY_CANDIDATE_ELECTRON: ${{ github.workspace }}\release\win-unpacked\Focus Buddy Candidate.exe
+        run: bun test e2e --timeout 45000 --bail=1
       # Validation only: no upload, release, signing secrets, or installation/uninstall smoke test.

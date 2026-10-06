@@ -1,27 +1,44 @@
 // Original isolated-profile integration tests, written on 2026-10-06.
 // AppKit dispatch/Electron MenuItem callbacks and clock/suspend hooks are fixtures.
 // They do not claim physical notification-area/menu-bar clicks or OS sleep.
-import { afterEach, expect, test } from 'bun:test';
+import { afterAll, afterEach, expect, test } from 'bun:test';
 import { rm } from 'node:fs/promises';
 import type { Page } from 'playwright';
-import { launchCandidate, waitFor, type CandidateApp } from './helpers';
+import { launchCandidate, waitFor, within, type CandidateApp } from './helpers';
 
 const desktopTest = ['darwin', 'win32'].includes(process.platform) ? test : test.skip;
 const windowsTest = process.platform === 'win32' ? test : test.skip;
 const active = new Set<CandidateApp>();
+const cleanupErrors: unknown[] = [];
 async function launch(userDataDir?: string): Promise<CandidateApp> {
   const app = await launchCandidate({ userDataDir });
   active.add(app);
   return app;
 }
 afterEach(async () => {
-  const profiles = new Set([...active].map((app) => app.userDataDir));
-  try {
-    for (const app of active) await app.close();
-  } finally {
-    active.clear();
-    for (const profile of profiles) await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  const apps = [...active];
+  active.clear();
+  const retained = new Set<string>();
+  for (const app of apps) {
+    try { await app.close(); }
+    catch (error) {
+      cleanupErrors.push(error);
+      retained.add(app.userDataDir);
+      console.warn(`[E2E cleanup] isolated profile retained after shutdown failure: ${String(error)}`);
+    }
   }
+  for (const profile of new Set(apps.map((app) => app.userDataDir))) {
+    if (retained.has(profile)) continue;
+    try {
+      await within('remove isolated profile', () => rm(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 }), 4000);
+    } catch (error) {
+      // Windows may retain Chromium file handles briefly; never obscure the test failure.
+      console.warn(`[E2E cleanup] temporary profile remains for runner cleanup: ${String(error)}`);
+    }
+  }
+}, 30000);
+afterAll(() => {
+  if (cleanupErrors.length) throw new AggregateError(cleanupErrors, 'Candidate shutdown cleanup failed; preceding test failures remain primary');
 });
 
 async function smallDurations(app: CandidateApp): Promise<void> {
@@ -62,7 +79,7 @@ desktopTest('fresh candidate starts with hidden windows and a ready platform tra
     expect(runtime.tray.imageSize.width).toBeGreaterThan(0);
     expect(runtime.tray.imageSize.height).toBeGreaterThan(0);
   }
-  await expect(app.nativeAction('일시정지')).rejects.toThrow();
+  await expect(app.main.evaluate(() => window.electron!.ipcRenderer.invoke('focus:native-menu-test', '일시정지'))).rejects.toThrow();
   await app.nativeAction('설정 및 작업명');
   await waitFor(() => app.windows(), (windows) => windows.some((window) => window.name === 'main' && window.visible));
   expect(await app.main.getByRole('heading', { name: '집중 리듬' }).isVisible()).toBe(true);

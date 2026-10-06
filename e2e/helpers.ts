@@ -25,15 +25,30 @@ export interface RuntimeInfo {
   };
 }
 
-export async function waitFor<T>(read: () => Promise<T>, accept: (value: T) => boolean, timeoutMs = 15000): Promise<T> {
+export async function within<T>(stage: string, operation: () => Promise<T>, timeoutMs = 15000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(operation),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`Candidate stage timed out after ${timeoutMs}ms: ${stage}`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+export async function waitFor<T>(read: () => Promise<T>, accept: (value: T) => boolean, timeoutMs = 15000, stage = 'condition'): Promise<T> {
   const deadline = Date.now() + timeoutMs;
   let value: T;
   do {
-    value = await read();
+    // The read itself can hang (for example a renderer IPC), not just its predicate.
+    value = await within(`${stage} read`, read, Math.max(1, deadline - Date.now()));
     if (accept(value)) return value;
     await new Promise<void>((done) => setTimeout(done, 50));
   } while (Date.now() < deadline);
-  throw new Error(`Candidate condition timed out; last value: ${JSON.stringify(value!)}`);
+  throw new Error(`Candidate ${stage} timed out; last value: ${JSON.stringify(value!)}`);
 }
 
 export interface CandidateApp {
@@ -77,50 +92,132 @@ export async function launchCandidate(options: { userDataDir?: string; executabl
     ...(executablePath ? { executablePath } : {}),
     timeout: 30000,
   });
-  let closed = false;
+  app.context().setDefaultTimeout(15000);
+  const childProcess = app.process();
+  // On Windows this child PID may be Playwright's cmd.exe wrapper, not Electron.
+  let ownedIdentity: { pid: number; userData: string } | undefined;
+  let appClosed = false;
+  app.once('close', () => { appClosed = true; });
+  const exited = (): boolean => appClosed;
+  const output: string[] = [];
+  const remember = (line: string): void => {
+    output.push(line.trim().slice(-1200));
+    if (output.length > 12) output.shift();
+  };
+  childProcess.stdout?.on('data', (data) => remember(String(data)));
+  childProcess.stderr?.on('data', (data) => remember(String(data)));
+  app.on('console', (message) => {
+    if (message.type() === 'error' || message.type() === 'warning') remember(`[main ${message.type()}] ${message.text()}`);
+  });
+  const observe = (page: Page): void => {
+    page.on('pageerror', (error) => remember(`[renderer error] ${error.message}`));
+    page.on('crash', () => remember(`[renderer crash] ${page.url()}`));
+  };
+  app.on('window', observe);
+  const stage = async <T>(label: string, operation: () => Promise<T>, timeoutMs = 15000): Promise<T> => {
+    try {
+      return await within(label, operation, timeoutMs);
+    } catch (error) {
+      console.error(`[E2E pid=${childProcess.pid}] ${label} failed; exit=${childProcess.exitCode}; signal=${childProcess.signalCode}; windows=${JSON.stringify(app.windows().map((page) => ({ url: page.url(), closed: page.isClosed() })))}\n${output.join('\n')}`);
+      throw error;
+    }
+  };
+  const readIdentity = (): Promise<{ pid: number; userData: string }> => stage('verify owned Electron PID and profile', () => app.evaluate(({ app }) => ({ pid: process.pid, userData: app.getPath('userData') })), 3000);
+  const verifyOwned = async (): Promise<void> => {
+    if (!ownedIdentity) throw new Error('Candidate process identity was not verified; refusing shutdown');
+    const current = await readIdentity();
+    if (current.pid !== ownedIdentity.pid || current.userData !== userDataDir)
+      throw new Error('Candidate PID or isolated profile changed; refusing shutdown');
+  };
+  let closing: Promise<void> | undefined;
+  const close = async (): Promise<void> => {
+    if (exited()) return;
+    if (closing) return closing;
+    closing = (async () => {
+      // No shutdown request is sent unless both actual Electron PID and profile match.
+      await verifyOwned();
+      try {
+        // Quit in the main process. A hidden renderer need not acknowledge shutdown.
+        await stage('request normal quit', () => app.evaluate(({ app }) => { setImmediate(() => app.quit()); }), 3000);
+        await waitFor(async () => exited(), Boolean, 6000, 'normal process exit');
+      } catch (error) {
+        if (exited()) return;
+        console.warn(`[E2E pid=${childProcess.pid}] normal quit failed; trying Playwright app.close`);
+        await verifyOwned();
+        await stage('Playwright app.close fallback', () => app.close(), 3000);
+        await waitFor(async () => exited(), Boolean, 2000, 'fallback process exit');
+        throw new Error('Candidate normal quit required fallback cleanup', { cause: error });
+      }
+    })();
+    return closing;
+  };
   try {
+    ownedIdentity = await readIdentity();
+    if (ownedIdentity.userData !== userDataDir || !Number.isInteger(ownedIdentity.pid) || ownedIdentity.pid <= 0) {
+      ownedIdentity = undefined;
+      throw new Error('Candidate launch did not select the isolated profile');
+    }
+    console.log(`[E2E] owned Electron pid=${ownedIdentity.pid}; launcher pid=${childProcess.pid}; profile verified`);
     const main = await app.firstWindow({ timeout: 20000 });
+    observe(main);
     await main.waitForFunction(() => Boolean(window.focusBuddy && window.focusBuddyTest), undefined, { timeout: 15000 });
-    await main.evaluate(() => window.focusBuddy!.getState());
-    const runtime = (): Promise<RuntimeInfo> => main.evaluate(() => window.electron!.ipcRenderer.invoke('focus:runtime-info'));
+    await stage('initial snapshot', () => main.evaluate(() => window.focusBuddy!.getState()));
+    const trayInfo = (): Promise<RuntimeInfo & { items: Array<{ label: string; enabled: boolean }> }> => stage('main tray diagnostic', () => app.evaluate(({ app }) => {
+      let info: (RuntimeInfo & { items: Array<{ label: string; enabled: boolean }> }) | undefined;
+      app.emit('focus-buddy:e2e-tray-info', (value: typeof info) => { info = value; });
+      if (!info) throw new Error('Candidate tray diagnostic event unavailable');
+      return info;
+    }));
+    const runtime = (): Promise<RuntimeInfo> => trayInfo();
     await waitFor(runtime, (info) => info.tray.ready === true);
-    const nativeAction = (label: string): Promise<void> => main.evaluate((value) => window.electron!.ipcRenderer.invoke('focus:native-menu-test', value), label);
+    const nativeAction = async (label: string): Promise<void> => {
+      console.log(`[E2E pid=${childProcess.pid}] menu waiting: ${label}`);
+      await waitFor(
+        trayInfo,
+        (info) => info.items.some((item) => item.label === label && item.enabled),
+        15000,
+        `enabled menu item ${label}`,
+      );
+      // Mirrors a native tray event: executes the actual menu callback in main.
+      await stage(`native menu callback: ${label}`, () => app.evaluate(({ app }, value) => {
+        if (!app.emit('focus-buddy:e2e-tray-action', value)) throw new Error('Candidate native tray test event unavailable');
+      }, label));
+      console.log(`[E2E pid=${childProcess.pid}] menu invoked: ${label}`);
+    };
     return {
       app, main, userDataDir, runtime,
-      snapshot: (page = main) => page.evaluate(() => window.focusBuddy!.getState()),
+      snapshot: (page = main) => stage('snapshot', () => page.evaluate(() => window.focusBuddy!.getState())),
       async dispatch(command, page = main) {
-        const result: DispatchResult = await page.evaluate((cmd) => window.focusBuddy!.dispatch(cmd), command);
+        const result: DispatchResult = await stage(`dispatch ${command.type}`, () => page.evaluate((cmd) => window.focusBuddy!.dispatch(cmd), command));
         if (!result.ok) throw new Error(`Candidate command failed: ${result.code}: ${result.message}`);
         return result.snapshot;
       },
-      advance: (ms, page = main) => page.evaluate((value) => window.focusBuddyTest!.advance(value), ms),
+      advance: (ms, page = main) => stage(`advance ${ms}ms`, () => page.evaluate((value) => window.focusBuddyTest!.advance(value), ms)),
       // Calls the real AppKit action dispatcher or Electron MenuItem.click callback.
       // Callers await observable state after asynchronous native menu actions.
       trayAction: nativeAction,
       nativeAction,
-      windows: () => main.evaluate(() => window.focusBuddyTest!.windowsInfo()),
+      windows: () => stage('window visibility', () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((window) => ({
+        name: window.webContents.getURL().includes('#/mini') ? 'mini' as const : 'main' as const,
+        visible: window.isVisible(),
+        alwaysOnTop: window.isAlwaysOnTop(),
+      })))),
       async mini() {
-        const page = await waitFor(async () => app.windows().find((window) => window.url().includes('#/mini')) ?? null, Boolean);
+        const page = await waitFor(async () => app.windows().find((window) => window.url().includes('#/mini')) ?? null, Boolean, 15000, 'mini window mount');
         if (!page) throw new Error('Candidate mini window did not mount');
         await page.waitForFunction(() => Boolean(window.focusBuddy && window.focusBuddyTest));
         await page.locator('.pixel-clock').waitFor({ state: 'attached' });
-        await page.evaluate(() => window.focusBuddy!.getState());
+        await stage('mini initial snapshot', () => page.evaluate(() => window.focusBuddy!.getState()));
         return page;
       },
       async persisted() {
-        await main.evaluate(() => window.focusBuddyTest!.saveNow());
+        await stage('save profile', () => main.evaluate(() => window.focusBuddyTest!.saveNow()));
         return JSON.parse(await readFile(join(userDataDir, 'focus-buddy.json'), 'utf8')) as PersistedState;
       },
-      async close() {
-        if (closed || app.process().exitCode !== null || app.process().signalCode !== null) return;
-        closed = true;
-        const exit = app.waitForEvent('close', { timeout: 20000 });
-        await main.evaluate(() => window.focusBuddyTest!.quit());
-        await exit;
-      },
+      close,
     };
   } catch (error) {
-    await app.close();
+    await close().catch((cleanup) => console.warn(`[E2E launch cleanup] ${String(cleanup)}`));
     throw error;
   }
 }

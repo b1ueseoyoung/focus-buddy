@@ -41,6 +41,37 @@ bun run verify:source
 
 로컬 macOS 앱을 열려면 `open "release/mac-arm64/Focus Buddy Candidate.app"`을 실행하세요.
 
+### Windows에서 실행·빌드
+
+Windows 10/11 x64와 Node.js 22, Bun 1.4.2를 준비하고 PowerShell에서 실행하세요. 아직 Release 다운로드나 미리 만든 Windows 설치 파일은 제공하지 않습니다. 아래 명령은 소스로부터 직접 빌드합니다.
+
+```powershell
+git clone https://github.com/b1ueseoyoung/focus-buddy.git
+cd focus-buddy
+git switch windows/desktop-support
+bun install --frozen-lockfile --ignore-scripts
+node node_modules/electron/install.js
+bun run build:win
+bun run start
+```
+
+`windows/desktop-support`는 병합 전 초안 PR 브랜치입니다. 개발 중 자동 새로고침은 `bun run dev`를 사용하세요. 시작하면 작업표시줄 알림 영역(숨겨진 아이콘 포함)의 고양이를 오른쪽 클릭해 **위젯 켜기**, **설정 및 작업명**, **오늘 기록**을 선택합니다. 두 번 클릭하면 설정 창이 열립니다. 창을 닫으면 숨겨지고, 트레이의 **Focus Buddy 종료**로 앱을 종료합니다.
+
+```powershell
+bun run typecheck
+bun run test
+bun run test:e2e
+bun run package:win
+bun run audit:win
+& '.\release\win-unpacked\Focus Buddy Candidate.exe'
+# 선택: Windows에서 서명 없는 NSIS 설치 프로그램을 로컬 생성
+bun run dist:win
+```
+
+설치 프로그램은 `release/Focus-Buddy-Candidate-0.1.0-candidate.1-x64-Setup.exe`에 생성됩니다. 일반 실행 시 현재 사용자 설치가 기본이며 관리자 권한을 요청하지 않습니다. Windows SmartScreen이 서명 없는 파일 경고를 표시할 수 있습니다. 데이터는 `%APPDATA%\Focus Buddy Candidate`에 저장되고 기존 앱 기록을 가져오지 않습니다.
+
+Mac의 `package:win`은 Windows 파일 조립만 검증하며 EXE 실행·설치와 아이콘/버전 리소스 편집은 하지 않습니다. Windows CI는 실제 Windows 호스트의 Electron 자동 검사와 패키징을 수행하지만, 사람이 조작하는 Windows GUI·실제 절전·DPI·투명 클릭 영역·알림·설치/제거는 별도 미검증입니다. [검사 실행](https://github.com/b1ueseoyoung/focus-buddy/actions/workflows/windows.yml)과 [상세 범위](docs/WINDOWS.md)를 확인하세요.
+
 패키지 자체의 통합 테스트:
 
 ```sh

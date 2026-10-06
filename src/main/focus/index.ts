@@ -1,5 +1,6 @@
 import {readFileSync,writeFileSync,renameSync,mkdirSync} from 'node:fs';
 import {join} from 'node:path';
+import type {EventEmitter} from 'node:events';
 import {SnoreCueClock,type SnoreCheckpoint} from './snore-cue';
 import { app, BrowserWindow, ipcMain } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
@@ -126,6 +127,15 @@ export function registerFocusMain(): FocusMain {
   ipcMain.handle('focus:snore-settings',(event,value:unknown)=>{assertKnownSender(event);if(value!==undefined){if(typeof value!=='boolean')throw new Error('invalid snore sound');snoreSound=value;saveCue();}return snoreSound;});
   ipcMain.handle('focus:runtime-info',event=>{assertKnownSender(event);return {build:'dot-cat-r5',pid:process.pid,executable:process.execPath,userData:app.getPath('userData'),tray:tray.diagnostics()};});
   if(process.env.FOCUS_BUDDY_E2E==='1')ipcMain.handle('focus:native-menu-test',(event,label:unknown)=>{assertKnownSender(event);if(label==='open')tray.testNativeOpen();else if(typeof label==='string')tray.testNativeAction(label);else throw Error('Invalid native menu test');});
+  if(process.env.FOCUS_BUDDY_E2E==='1')(app as EventEmitter).on('focus-buddy:e2e-tray-action',(label:unknown)=>{
+    // Native tray actions originate in the main process. A renderer round-trip
+    // can stall when that very action hides its window on Windows.
+    if(typeof label!=='string')throw Error('Invalid native menu test');
+    tray.testNativeAction(label);
+  });
+  if(process.env.FOCUS_BUDDY_E2E==='1')(app as EventEmitter).on('focus-buddy:e2e-tray-info',(reply:(value:unknown)=>void)=>{
+    reply({userData:app.getPath('userData'),tray:tray.diagnostics(),items:tray.items().map(({label,enabled})=>({label,enabled}))});
+  });
   ipcMain.handle("focus:widget-scale", (event, value: unknown) => {
     assertKnownSender(event);
     if (value !== undefined) {

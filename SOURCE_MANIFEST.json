@@ -13,8 +13,8 @@
     },
     {
       "path": ".github/workflows/windows.yml",
-      "bytes": 1883,
-      "sha256": "a491cd04b21d149b4512d3ddc98da0324dd4646c38f0ecddeff2e57165ad2697"
+      "bytes": 1979,
+      "sha256": "cda178efcaaba2fe02c0f8d314cb1ee86f929245f1855b4e4a84f77b4569af5d"
     },
     {
       "path": ".gitignore",
@@ -33,8 +33,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 6966,
-      "sha256": "f3dc6114666f6aca7f073d162176d0d12a6ffffd403c9adc1b678fd2536b4cec"
+      "bytes": 9143,
+      "sha256": "d67f1706adeb0fa4344692e937ee22dcb4d38fd4ff166782b163621ae86c7892"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -73,13 +73,18 @@
     },
     {
       "path": "e2e/candidate.e2e.test.ts",
-      "bytes": 19939,
-      "sha256": "0891470e9f59750b22f0dc43f72d97b4300e0277669164f10558080e1e048a7a"
+      "bytes": 20781,
+      "sha256": "701015eb418ee7e277e6c62bad67096ec20d8fc1b200abc96f6d5c1311bb9258"
+    },
+    {
+      "path": "e2e/helper-timeouts.test.ts",
+      "bytes": 649,
+      "sha256": "1af3cd1bd2c7ad441526111241d550e2800c45b82c84566e283b1b6f5c9ad085"
     },
     {
       "path": "e2e/helpers.ts",
-      "bytes": 5543,
-      "sha256": "d92111e2cb03af92aa5769289bedc72d29cd7338b4130022e87651560b0ccf16"
+      "bytes": 11021,
+      "sha256": "b1b127741587245ba56cd74cfc5ef077aeb3d2f27c1521b8f9a523eab20f485c"
     },
     {
       "path": "e2e/profile-paths.test.ts",
@@ -338,8 +343,8 @@
     },
     {
       "path": "src/main/focus/index.ts",
-      "bytes": 8384,
-      "sha256": "992cd4991ac385080188759176fa42abdc51f9e3a09a9239722f62594ae6eb28"
+      "bytes": 9067,
+      "sha256": "99b5b30c2166c1c8834fcc1352646d751dfb8c36a0b26da585f6f1fd82817fdb"
     },
     {
       "path": "src/main/focus/ipc.ts",
